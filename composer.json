@@ -3,21 +3,16 @@
     "description": "Project to add digital signature in pdf files",
     "type": "library",
     "require": {
-        "php": "^8.1",
         "ext-openssl": "*",
         "ext-zlib": "*",
         "ext-fileinfo": "*",
         "ramsey/uuid": "^4.7"
     },
-    "require-dev": {
-        "pestphp/pest": "v2.20.0",
-        "laravel/pint": "v1.13.2",
-        "symfony/var-dumper": "^6.4.2"
-    },
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Jeidison\\PdfSigner\\": "src/"
+            "Jeidison\\PdfSigner\\": "src/",
+            "Tests\\": "tests"
         },
         "files": [
             "src/Utils/helpers.php"
@@ -36,7 +31,14 @@
     "minimum-stability": "dev",
     "config": {
         "allow-plugins": {
-            "pestphp/pest-plugin": true
+            "pestphp/pest-plugin": true,
+            "bamarni/composer-bin-plugin": true
+        },
+        "platform": {
+            "php": "8.0"
         }
+    },
+    "require-dev": {
+        "bamarni/composer-bin-plugin": "dev-master"
     }
 }

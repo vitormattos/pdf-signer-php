@@ -1,3 +1,5 @@
 vendor/
+/vendor-bin/**/vendor/
 .idea/
-file-tests/
+tests/temp
+.phpunit.result.cache

@@ -84,11 +84,13 @@ class Signer
         $this->signature->withPdfDocument($pdfDocument);
     }
 
-    public function withCertificate(string $pathCertificate, string $password): self
+    public function withCertificate(string $certFileContent, string $password): self
     {
-        $certFileContent = file_get_contents($pathCertificate);
-        if ($certFileContent === false) {
-            throw new Exception('Could not read file '.$pathCertificate);
+        if (is_file($certFileContent)) {
+            $certFileContent = file_get_contents($certFileContent);
+            if ($certFileContent === false) {
+                throw new Exception('Could not read file '.$certFileContent);
+            }
         }
 
         if (openssl_pkcs12_read($certFileContent, $certificate, $password) === false) {
