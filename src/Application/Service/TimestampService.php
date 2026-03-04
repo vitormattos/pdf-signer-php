@@ -65,4 +65,3 @@ final readonly class TimestampService
         return null;
     }
 }
-
