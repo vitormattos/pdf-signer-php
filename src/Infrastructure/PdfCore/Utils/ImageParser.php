@@ -88,8 +88,8 @@ final class ImageParser
         $height = $this->reader->readInt($stream);
         $bitsPerChannel = ord($this->reader->read($stream, 1));
 
-        if ($bitsPerChannel > 8) {
-            throw new Exception('16-bit depth not supported');
+        if ($bitsPerChannel !== 1 && $bitsPerChannel !== 2 && $bitsPerChannel !== 4 && $bitsPerChannel !== 8 && $bitsPerChannel !== 16) {
+            throw new Exception('Unsupported bit depth: '.$bitsPerChannel);
         }
 
         $colorType = ord($this->reader->read($stream, 1));
@@ -179,7 +179,7 @@ final class ImageParser
                 throw new Exception('failed to uncompress the image');
             }
 
-            [$colorData, $alphaData] = $this->splitPngAlphaChannels($inflated, $width, $height, $colorType);
+            [$colorData, $alphaData] = $this->splitPngAlphaChannels($inflated, $width, $height, $colorType, $bitsPerChannel);
             $info['data'] = (string) gzcompress($colorData);
             $info['smask'] = (string) gzcompress($alphaData);
         }
@@ -190,35 +190,53 @@ final class ImageParser
     /**
      * @return array{0:string,1:string}
      */
-    private function splitPngAlphaChannels(string $inflatedData, int $width, int $height, int $colorType): array
+    private function splitPngAlphaChannels(string $inflatedData, int $width, int $height, int $colorType, int $bitsPerChannel = 8): array
     {
         $color = '';
         $alpha = '';
 
+        $bytesPerChannel = $bitsPerChannel === 16 ? 2 : 1;
+
         if ($colorType === 4) {
-            $lineLength = 2 * $width;
+            // Grayscale + Alpha
+            $lineLength = 2 * $bytesPerChannel * $width;
 
             for ($lineIndex = 0; $lineIndex < $height; $lineIndex++) {
                 $position = (1 + $lineLength) * $lineIndex;
                 $color .= $inflatedData[$position];
                 $alpha .= $inflatedData[$position];
                 $line = substr($inflatedData, $position + 1, $lineLength);
-                $color .= (string) preg_replace('/(.)./s', '$1', $line);
-                $alpha .= (string) preg_replace('/.(.)/s', '$1', $line);
+
+                if ($bytesPerChannel === 1) {
+                    $color .= (string) preg_replace('/(.)./s', '$1', $line);
+                    $alpha .= (string) preg_replace('/.(.)/s', '$1', $line);
+                } else {
+                    // 16-bit: extract 2 bytes for color, 2 bytes for alpha
+                    $color .= (string) preg_replace('/(..)../s', '$1', $line);
+                    $alpha .= (string) preg_replace('/..(..)/s', '$1', $line);
+                }
             }
 
             return [$color, $alpha];
         }
 
-        $lineLength = 4 * $width;
+        // RGB + Alpha (colorType === 6)
+        $lineLength = 4 * $bytesPerChannel * $width;
 
         for ($lineIndex = 0; $lineIndex < $height; $lineIndex++) {
             $position = (1 + $lineLength) * $lineIndex;
             $color .= $inflatedData[$position];
             $alpha .= $inflatedData[$position];
             $line = substr($inflatedData, $position + 1, $lineLength);
-            $color .= (string) preg_replace('/(.{3})./s', '$1', $line);
-            $alpha .= (string) preg_replace('/.{3}(.)/s', '$1', $line);
+
+            if ($bytesPerChannel === 1) {
+                $color .= (string) preg_replace('/(.{3})./s', '$1', $line);
+                $alpha .= (string) preg_replace('/.{3}(.)/s', '$1', $line);
+            } else {
+                // 16-bit: extract 6 bytes for RGB (2 each), 2 bytes for alpha
+                $color .= (string) preg_replace('/(.{6})../s', '$1', $line);
+                $alpha .= (string) preg_replace('/.{6}(..)/s', '$1', $line);
+            }
         }
 
         return [$color, $alpha];
