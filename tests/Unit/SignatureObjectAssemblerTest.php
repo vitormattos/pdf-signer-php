@@ -98,7 +98,7 @@ final class SignatureObjectAssemblerTest extends TestCase
         $this->injectPageInfoWithStringMediaBox($document);
 
         $appearance = SignatureAppearance::new()
-            ->withImage($this->tinyPngBase64())
+            ->withBackgroundImage($this->tinyPngBase64())
             ->withRect([10, 10, 100, 60]);
 
         (new SignatureObjectAssembler)->assemble($document, $appearance, Metadata::new()->withName('Visible'));

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace SignerPHP\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use SignerPHP\Application\DTO\CertificateCredentialsDto;
 use SignerPHP\Application\DTO\CertificationLevel;
 use SignerPHP\Application\DTO\PdfContentDto;
 use SignerPHP\Application\DTO\SignatureAppearanceDto;
+use SignerPHP\Application\DTO\SignatureAppearanceXObjectDto;
 use SignerPHP\Application\DTO\SignatureProfile;
 use SignerPHP\Application\DTO\SigningContextDto;
 use SignerPHP\Application\DTO\SigningOptionsDto;
@@ -38,7 +38,7 @@ final class PdfSignatureFactoryTest extends TestCase
         $signature = $factory->create($this->context(new SigningOptionsDto), new PdfDocument);
         $appearance = $this->extractAppearance($signature);
 
-        self::assertSame('base64-image', $appearance->getImage());
+        self::assertSame('base64-image', $appearance->getBackgroundImage());
         self::assertSame([1, 2, 3, 4], $appearance->getRect());
         self::assertSame(2, $appearance->getPageToAppear());
     }
@@ -60,7 +60,7 @@ final class PdfSignatureFactoryTest extends TestCase
         );
         $appearance = $this->extractAppearance($signature);
 
-        self::assertNull($appearance->getImage());
+        self::assertNull($appearance->getBackgroundImage());
         self::assertSame([0, 0, 0, 0], $appearance->getRect());
         self::assertSame(0, $appearance->getPageToAppear());
     }
@@ -85,9 +85,49 @@ final class PdfSignatureFactoryTest extends TestCase
         );
         $appearance = $this->extractAppearance($signature);
 
-        self::assertSame('custom-image', $appearance->getImage());
+        self::assertSame('custom-image', $appearance->getBackgroundImage());
         self::assertSame([10, 20, 30, 40], $appearance->getRect());
         self::assertSame(1, $appearance->getPageToAppear());
+    }
+
+    public function test_factory_passes_prepared_xobject_to_signature_appearance(): void
+    {
+        $provider = new class implements DefaultSignatureAppearanceProviderInterface
+        {
+            public function makeDefault(): SignatureAppearanceDto
+            {
+                return new SignatureAppearanceDto('default-image', [11, 22, 33, 44], 3);
+            }
+        };
+
+        $xObject = new SignatureAppearanceXObjectDto(
+            'q 1 0 0 1 0 0 cm BT /F1 12 Tf (Signed) Tj ET Q',
+            [
+                'Font' => [
+                    'F1' => [
+                        'Type' => '/Font',
+                        'Subtype' => '/Type1',
+                        'BaseFont' => '/Helvetica',
+                    ],
+                ],
+            ]
+        );
+
+        $factory = new PdfSignatureFactory($provider);
+        $signature = $factory->create(
+            $this->context(new SigningOptionsDto(
+                appearance: new SignatureAppearanceDto('custom-image', [10, 20, 30, 40], 1, $xObject),
+            )),
+            new PdfDocument
+        );
+        $appearance = $this->extractAppearance($signature);
+
+        /** @var SignatureAppearanceXObjectDto|null $actualXObject */
+        $actualXObject = $this->readPrivateProperty($appearance, 'xObject');
+
+        self::assertInstanceOf(SignatureAppearanceXObjectDto::class, $actualXObject);
+        self::assertSame($xObject->stream, $actualXObject->stream);
+        self::assertSame($xObject->resources, $actualXObject->resources);
     }
 
     public function test_factory_sets_pades_sub_filter_when_profile_is_enabled(): void
@@ -180,11 +220,7 @@ final class PdfSignatureFactoryTest extends TestCase
         $factory = new PdfSignatureFactory($provider);
         $signature = $factory->create($this->context($options), new PdfDocument);
 
-        $reflection = new ReflectionClass($signature);
-        $property = $reflection->getProperty('certificationLevel');
-        $property->setAccessible(true);
-
-        self::assertSame(CertificationLevel::FormFillAndSignatures, $property->getValue($signature));
+        self::assertSame(CertificationLevel::FormFillAndSignatures, $this->readPrivateProperty($signature, 'certificationLevel'));
     }
 
     private function context(SigningOptionsDto $options): SigningContextDto
@@ -203,22 +239,21 @@ final class PdfSignatureFactoryTest extends TestCase
 
     private function extractAppearance(Signature $signature): SignatureAppearance
     {
-        $reflection = new ReflectionClass($signature);
-        $property = $reflection->getProperty('appearance');
-        $property->setAccessible(true);
-
         /** @var SignatureAppearance $appearance */
-        $appearance = $property->getValue($signature);
+        $appearance = $this->readPrivateProperty($signature, 'appearance');
 
         return $appearance;
     }
 
     private function extractSubFilter(Signature $signature): string
     {
-        $reflection = new ReflectionClass($signature);
-        $property = $reflection->getProperty('subFilter');
-        $property->setAccessible(true);
+        return (string) $this->readPrivateProperty($signature, 'subFilter');
+    }
 
-        return (string) $property->getValue($signature);
+    private function readPrivateProperty(object $target, string $property): mixed
+    {
+        return (function (string $property): mixed {
+            return $this->{$property};
+        })->bindTo($target, $target::class)($property);
     }
 }
