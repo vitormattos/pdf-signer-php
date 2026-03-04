@@ -6,6 +6,8 @@
     ]
   },
   "timeout": 20,
+  "minMsi": 97,
+  "minCoveredMsi": 100,
   "tmpDir": "build/infection",
   "logs": {
     "summary": "build/infection/summary.log",
