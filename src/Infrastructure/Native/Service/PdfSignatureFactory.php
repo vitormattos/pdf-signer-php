@@ -34,7 +34,10 @@ final class PdfSignatureFactory implements SignatureFactoryInterface
         if ($appearance !== null) {
             $signature->withAppearance(
                 SignatureAppearance::new()
-                    ->withImage($appearance->imagePath)
+                    ->withBackgroundImage($appearance->backgroundImagePath)
+                    ->withXObject($appearance->xObject)
+                    ->withSignatureImage($appearance->signatureImagePath)
+                    ->withSignatureImageFrame($appearance->signatureImageFrame)
                     ->withRect($appearance->normalizedRect())
                     ->addSignAppearanceInPage($appearance->page)
             );
