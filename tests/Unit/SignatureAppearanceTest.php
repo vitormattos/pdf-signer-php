@@ -61,7 +61,7 @@ final class SignatureAppearanceTest extends TestCase
         $annotation = $document->createObject(['Type' => '/Annot']);
 
         $appearance = SignatureAppearance::new()
-            ->withImage($this->tinyPngBase64())
+            ->withBackgroundImage($this->tinyPngBase64())
             ->withRect([10, 20, 110, 70])
             ->withPdfDocument($document)
             ->withAnnotationObject($annotation)
@@ -85,7 +85,7 @@ final class SignatureAppearanceTest extends TestCase
 
         $appearance = SignatureAppearance::new()
             ->addSignAppearanceInPage(9)
-            ->withImage($this->tinyPngBase64())
+            ->withBackgroundImage($this->tinyPngBase64())
             ->withRect([10, 20, 110, 70])
             ->withPdfDocument($document)
             ->withAnnotationObject($annotation)
