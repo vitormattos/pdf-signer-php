@@ -71,4 +71,3 @@ final class TimestampBuilder
         return $this->content;
     }
 }
-

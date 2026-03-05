@@ -12,4 +12,3 @@ final readonly class TimestampConnectionResultDto
         public ?int $statusCode = null,
     ) {}
 }
-

@@ -61,4 +61,3 @@ final class TimestampServiceTest extends TestCase
         self::assertStringContainsString('Status: 403', (string) $result->message);
     }
 }
-
