@@ -20,7 +20,7 @@
         "bin/signer-doctor"
     ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.1",
         "ext-openssl": "*",
         "ext-curl": "*",
         "ext-zlib": "*",
