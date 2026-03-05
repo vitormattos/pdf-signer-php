@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class SignatureAppearanceDto
+final class SignatureAppearanceDto
 {
     /**
      * @param  string|null  $backgroundImagePath  Path (or base64 string) for the n0 background image; null = blank n0
@@ -15,12 +15,12 @@ final readonly class SignatureAppearanceDto
      * @param  array{0: float|int, 1: float|int, 2: float|int, 3: float|int}|null  $signatureImageFrame  Placement [x,y,w,h] within bbox for the signature image; null = full bbox
      */
     public function __construct(
-        public ?string $backgroundImagePath,
-        public array $rect,
-        public int $page,
-        public ?SignatureAppearanceXObjectDto $xObject = null,
-        public ?string $signatureImagePath = null,
-        public ?array $signatureImageFrame = null,
+        public readonly ?string $backgroundImagePath,
+        public readonly array $rect,
+        public readonly int $page,
+        public readonly ?SignatureAppearanceXObjectDto $xObject = null,
+        public readonly ?string $signatureImagePath = null,
+        public readonly ?array $signatureImageFrame = null,
     ) {}
 
     /**

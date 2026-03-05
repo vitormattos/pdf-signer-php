@@ -18,13 +18,13 @@ use SignerPHP\Infrastructure\Native\Service\OpenSslSignatureCryptoVerifier;
 use SignerPHP\Infrastructure\Native\Service\OpenSslSignatureTrustVerifier;
 use SignerPHP\Infrastructure\Native\Service\PdfSignatureExtractor;
 
-final readonly class NativePdfSignatureValidationEngine implements PdfSignatureValidationEngineInterface
+final class NativePdfSignatureValidationEngine implements PdfSignatureValidationEngineInterface
 {
     public function __construct(
-        private PdfSignatureExtractorInterface $signatureExtractor = new PdfSignatureExtractor,
-        private SignatureCryptoVerifierInterface $cryptoVerifier = new OpenSslSignatureCryptoVerifier,
-        private SignatureTrustVerifierInterface $trustVerifier = new OpenSslSignatureTrustVerifier,
-        private BrazilPolicyListVerifierInterface $policyVerifier = new OpenSslBrazilPolicyListVerifier,
+        private readonly PdfSignatureExtractorInterface $signatureExtractor = new PdfSignatureExtractor,
+        private readonly SignatureCryptoVerifierInterface $cryptoVerifier = new OpenSslSignatureCryptoVerifier,
+        private readonly SignatureTrustVerifierInterface $trustVerifier = new OpenSslSignatureTrustVerifier,
+        private readonly BrazilPolicyListVerifierInterface $policyVerifier = new OpenSslBrazilPolicyListVerifier,
     ) {}
 
     public function validate(ValidatePdfRequestDto $request): SignatureValidationResultDto

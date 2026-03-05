@@ -8,9 +8,9 @@ use SignerPHP\Application\Contract\PdfSignatureValidationEngineInterface;
 use SignerPHP\Application\DTO\SignatureValidationResultDto;
 use SignerPHP\Application\DTO\ValidatePdfRequestDto;
 
-final readonly class PdfSignatureValidationService
+final class PdfSignatureValidationService
 {
-    public function __construct(private PdfSignatureValidationEngineInterface $validationEngine) {}
+    public function __construct(private readonly PdfSignatureValidationEngineInterface $validationEngine) {}
 
     public function validate(ValidatePdfRequestDto $request): SignatureValidationResultDto
     {

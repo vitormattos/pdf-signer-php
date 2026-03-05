@@ -16,12 +16,12 @@ use SignerPHP\Infrastructure\Native\Service\Pkcs7Signer;
 use SignerPHP\Infrastructure\Native\Service\SignedBufferBuilder;
 use SignerPHP\Infrastructure\Native\Service\XrefContentResolver;
 
-final readonly class NativePdfSigningEngine implements PdfSigningEngineInterface
+final class NativePdfSigningEngine implements PdfSigningEngineInterface
 {
     public function __construct(
-        private PdfDocumentPreparerInterface $documentPreparer = new PdfDocumentPreparer,
-        private SignatureFactoryInterface $signatureFactory = new PdfSignatureFactory,
-        private SignedBufferBuilderInterface $signedBufferBuilder = new SignedBufferBuilder(
+        private readonly PdfDocumentPreparerInterface $documentPreparer = new PdfDocumentPreparer,
+        private readonly SignatureFactoryInterface $signatureFactory = new PdfSignatureFactory,
+        private readonly SignedBufferBuilderInterface $signedBufferBuilder = new SignedBufferBuilder(
             new XrefContentResolver,
             new Pkcs7Signer,
         ),

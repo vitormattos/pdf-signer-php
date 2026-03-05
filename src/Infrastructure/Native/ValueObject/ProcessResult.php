@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace SignerPHP\Infrastructure\Native\ValueObject;
 
-final readonly class ProcessResult
+final class ProcessResult
 {
     /**
      * @param  array<int, string>  $output
      */
     public function __construct(
-        public int $exitCode,
-        public array $output = [],
+        public readonly int $exitCode,
+        public readonly array $output = [],
     ) {}
 
     public function succeeded(): bool

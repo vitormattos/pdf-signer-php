@@ -6,12 +6,12 @@ namespace SignerPHP\Application\DTO;
 
 use InvalidArgumentException;
 
-final readonly class CertificateCredentialsDto
+final class CertificateCredentialsDto
 {
     public function __construct(
-        public ?string $certificatePath,
-        public string $password,
-        public ?string $certificateContent = null,
+        public readonly ?string $certificatePath,
+        public readonly string $password,
+        public readonly ?string $certificateContent = null,
     ) {
         $hasPath = is_string($this->certificatePath) && $this->certificatePath !== '';
         $hasContent = is_string($this->certificateContent) && $this->certificateContent !== '';

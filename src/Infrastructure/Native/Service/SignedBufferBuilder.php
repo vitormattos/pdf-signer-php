@@ -18,13 +18,13 @@ use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueSimple;
 use SignerPHP\Infrastructure\PdfCore\Signature;
 use SignerPHP\Infrastructure\PdfCore\Xref\Xref;
 
-final readonly class SignedBufferBuilder implements SignedBufferBuilderInterface
+final class SignedBufferBuilder implements SignedBufferBuilderInterface
 {
     public function __construct(
-        private XrefContentResolverInterface $xrefContentResolver,
-        private Pkcs7SignerInterface $pkcs7Signer,
-        private DocumentTimestampApplierInterface $documentTimestampApplier = new DocumentTimestampApplier,
-        private LongTermValidationApplierInterface $longTermValidationApplier = new DocumentLongTermValidationApplier,
+        private readonly XrefContentResolverInterface $xrefContentResolver,
+        private readonly Pkcs7SignerInterface $pkcs7Signer,
+        private readonly DocumentTimestampApplierInterface $documentTimestampApplier = new DocumentTimestampApplier,
+        private readonly LongTermValidationApplierInterface $longTermValidationApplier = new DocumentLongTermValidationApplier,
     ) {}
 
     public function build(PdfDocument $pdfDocument, Signature $signatureHandler, SigningContextDto $context): Buffer

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class ValidatePdfRequestDto
+final class ValidatePdfRequestDto
 {
     public function __construct(
-        public PdfContentDto $pdf,
-        public SignatureValidationOptionsDto $options = new SignatureValidationOptionsDto,
+        public readonly PdfContentDto $pdf,
+        public readonly SignatureValidationOptionsDto $options = new SignatureValidationOptionsDto,
     ) {}
 }

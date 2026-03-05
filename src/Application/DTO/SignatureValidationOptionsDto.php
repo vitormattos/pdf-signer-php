@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class SignatureValidationOptionsDto
+final class SignatureValidationOptionsDto
 {
     public function __construct(
-        public bool $checkTrustChain = false,
-        public ?string $trustStorePath = null,
-        public ?string $trustAnchorsDirectory = null,
-        public ?array $trustAnchorsUrls = null,
-        public ?string $policy = null,
-        public bool $checkPolicyList = false,
-        public ?string $lpaUrlAsn1Pades = null,
-        public ?string $lpaUrlAsn1SignaturePades = null,
+        public readonly bool $checkTrustChain = false,
+        public readonly ?string $trustStorePath = null,
+        public readonly ?string $trustAnchorsDirectory = null,
+        public readonly ?array $trustAnchorsUrls = null,
+        public readonly ?string $policy = null,
+        public readonly bool $checkPolicyList = false,
+        public readonly ?string $lpaUrlAsn1Pades = null,
+        public readonly ?string $lpaUrlAsn1SignaturePades = null,
     ) {}
 }

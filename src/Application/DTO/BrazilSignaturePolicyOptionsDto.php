@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class BrazilSignaturePolicyOptionsDto
+final class BrazilSignaturePolicyOptionsDto
 {
-    public const SERPRO_TOKEN_URL = 'https://gateway.apiserpro.serpro.gov.br/token';
+    public readonly const SERPRO_TOKEN_URL = 'https://gateway.apiserpro.serpro.gov.br/token';
 
-    public const SERPRO_STAMP_URL = 'https://gateway.apiserpro.serpro.gov.br/apitimestamp/v1/stamps-asn1';
+    public readonly const SERPRO_STAMP_URL = 'https://gateway.apiserpro.serpro.gov.br/apitimestamp/v1/stamps-asn1';
 
-    public HashAlgorithm $hashAlgorithm;
+    public readonly HashAlgorithm $hashAlgorithm;
 
     public function __construct(
-        public string $tsaUrl = self::SERPRO_STAMP_URL,
+        public readonly string $tsaUrl = self::SERPRO_STAMP_URL,
         HashAlgorithm|string $hashAlgorithm = HashAlgorithm::Sha256,
-        public int $timeoutSeconds = 20,
-        public bool $certReq = true,
-        public ?string $serproConsumerKey = null,
-        public ?string $serproConsumerSecret = null,
-        public string $serproTokenUrl = self::SERPRO_TOKEN_URL,
+        public readonly int $timeoutSeconds = 20,
+        public readonly bool $certReq = true,
+        public readonly ?string $serproConsumerKey = null,
+        public readonly ?string $serproConsumerSecret = null,
+        public readonly string $serproTokenUrl = self::SERPRO_TOKEN_URL,
     ) {
         $this->hashAlgorithm = HashAlgorithm::fromString($hashAlgorithm);
     }

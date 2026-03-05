@@ -16,15 +16,15 @@ use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueReference;
 use SignerPHP\Infrastructure\PdfCore\Service\TrailerObjectResolver;
 use SignerPHP\Infrastructure\PdfCore\Xref\Xref;
 
-final readonly class DocumentLongTermValidationApplier implements LongTermValidationApplierInterface
+final class DocumentLongTermValidationApplier implements LongTermValidationApplierInterface
 {
     public function __construct(
-        private PdfDocumentPreparer $documentPreparer = new PdfDocumentPreparer,
-        private XrefContentResolver $xrefContentResolver = new XrefContentResolver,
-        private TrailerObjectResolver $trailerObjectResolver = new TrailerObjectResolver,
-        private PdfSignatureExtractorInterface $signatureExtractor = new PdfSignatureExtractor,
-        private SignatureCertificateCollectorInterface $certificateCollector = new OpenSslCmsCertificateCollector,
-        private SignatureRevocationEvidenceCollectorInterface $revocationCollector = new OpenSslRevocationEvidenceCollector,
+        private readonly PdfDocumentPreparer $documentPreparer = new PdfDocumentPreparer,
+        private readonly XrefContentResolver $xrefContentResolver = new XrefContentResolver,
+        private readonly TrailerObjectResolver $trailerObjectResolver = new TrailerObjectResolver,
+        private readonly PdfSignatureExtractorInterface $signatureExtractor = new PdfSignatureExtractor,
+        private readonly SignatureCertificateCollectorInterface $certificateCollector = new OpenSslCmsCertificateCollector,
+        private readonly SignatureRevocationEvidenceCollectorInterface $revocationCollector = new OpenSslRevocationEvidenceCollector,
     ) {}
 
     public function apply(string $signedPdfContent): string

@@ -9,11 +9,11 @@ use SignerPHP\Application\Contract\PdfSigningEngineInterface;
 use SignerPHP\Application\DTO\SigningContextDto;
 use SignerPHP\Application\DTO\SignPdfRequestDto;
 
-final readonly class PdfSigningService
+final class PdfSigningService
 {
     public function __construct(
-        private CertificateValidatorInterface $certificateValidator,
-        private PdfSigningEngineInterface $signingEngine,
+        private readonly CertificateValidatorInterface $certificateValidator,
+        private readonly PdfSigningEngineInterface $signingEngine,
     ) {}
 
     public function sign(SignPdfRequestDto $request): string

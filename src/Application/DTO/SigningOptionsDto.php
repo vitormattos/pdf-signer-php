@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class SigningOptionsDto
+final class SigningOptionsDto
 {
     public function __construct(
-        public ?SignatureMetadataDto $metadata = null,
-        public ?SignatureAppearanceDto $appearance = null,
-        public ?TimestampOptionsDto $timestamp = null,
-        public bool $useDefaultAppearance = true,
-        public SignatureProfile $signatureProfile = SignatureProfile::PdfBasic,
-        public ?CertificationLevel $certificationLevel = null,
+        public readonly ?SignatureMetadataDto $metadata = null,
+        public readonly ?SignatureAppearanceDto $appearance = null,
+        public readonly ?TimestampOptionsDto $timestamp = null,
+        public readonly bool $useDefaultAppearance = true,
+        public readonly SignatureProfile $signatureProfile = SignatureProfile::PdfBasic,
+        public readonly ?CertificationLevel $certificationLevel = null,
     ) {}
 
     public static function empty(): self

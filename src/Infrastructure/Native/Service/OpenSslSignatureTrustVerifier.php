@@ -10,12 +10,12 @@ use SignerPHP\Infrastructure\Native\Contract\SignatureCertificateCollectorInterf
 use SignerPHP\Infrastructure\Native\Contract\SignatureTrustVerifierInterface;
 use SignerPHP\Infrastructure\Native\ValueObject\SignatureTrustVerification;
 
-final readonly class OpenSslSignatureTrustVerifier implements SignatureTrustVerifierInterface
+final class OpenSslSignatureTrustVerifier implements SignatureTrustVerifierInterface
 {
     public function __construct(
-        private SignatureCertificateCollectorInterface $certificateCollector = new OpenSslCmsCertificateCollector,
-        private IcpBrasilTrustAnchorBundleProvider $trustAnchorBundleProvider = new IcpBrasilTrustAnchorBundleProvider,
-        private ProcessRunnerInterface $processRunner = new ShellProcessRunner,
+        private readonly SignatureCertificateCollectorInterface $certificateCollector = new OpenSslCmsCertificateCollector,
+        private readonly IcpBrasilTrustAnchorBundleProvider $trustAnchorBundleProvider = new IcpBrasilTrustAnchorBundleProvider,
+        private readonly ProcessRunnerInterface $processRunner = new ShellProcessRunner,
     ) {}
 
     public function verify(string $signatureHex, SignatureValidationOptionsDto $options): SignatureTrustVerification

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class SignatureValidationResultDto
+final class SignatureValidationResultDto
 {
     /**
      * @param  array<int, SignatureValidationEntryDto>  $entries
      */
     public function __construct(
-        public bool $hasSignatures,
-        public bool $allValid,
-        public array $entries,
+        public readonly bool $hasSignatures,
+        public readonly bool $allValid,
+        public readonly array $entries,
     ) {}
 }

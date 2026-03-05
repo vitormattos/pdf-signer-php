@@ -6,19 +6,19 @@ namespace SignerPHP\Infrastructure\PdfCore;
 
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValue;
 
-final readonly class ParsedDocumentStructure
+final class ParsedDocumentStructure
 {
     /**
      * @param  array<int, int|array{stmoid:int,pos:int}|null>  $xrefTable
      * @param  array<int, int>  $revisions
      */
     public function __construct(
-        public ?PDFValue $trailer,
-        public string $version,
-        public array $xrefTable,
-        public int $xrefPosition,
-        public string $xrefVersion,
-        public array $revisions,
+        public readonly ?PDFValue $trailer,
+        public readonly string $version,
+        public readonly array $xrefTable,
+        public readonly int $xrefPosition,
+        public readonly string $xrefVersion,
+        public readonly array $revisions,
     ) {}
 
     /**

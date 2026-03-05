@@ -10,10 +10,10 @@ use SignerPHP\Domain\Exception\SignProcessException;
 use SignerPHP\Infrastructure\Native\Contract\TimestampTokenProviderInterface;
 use SignerPHP\Infrastructure\Native\Service\OpenSslRfc3161TimestampTokenProvider;
 
-final readonly class TimestampService
+final class TimestampService
 {
     public function __construct(
-        private TimestampTokenProviderInterface $tokenProvider = new OpenSslRfc3161TimestampTokenProvider,
+        private readonly TimestampTokenProviderInterface $tokenProvider = new OpenSslRfc3161TimestampTokenProvider,
     ) {}
 
     public function requestTokenHex(string $content, TimestampOptionsDto $options): string

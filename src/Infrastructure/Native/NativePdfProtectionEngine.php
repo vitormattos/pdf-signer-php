@@ -10,10 +10,10 @@ use SignerPHP\Domain\Exception\ProtectionProcessException;
 use SignerPHP\Infrastructure\Native\Contract\PdfProtectionApplierInterface;
 use SignerPHP\Infrastructure\Native\Service\QpdfPdfProtectionApplier;
 
-final readonly class NativePdfProtectionEngine implements PdfProtectionEngineInterface
+final class NativePdfProtectionEngine implements PdfProtectionEngineInterface
 {
     public function __construct(
-        private PdfProtectionApplierInterface $protectionApplier = new QpdfPdfProtectionApplier,
+        private readonly PdfProtectionApplierInterface $protectionApplier = new QpdfPdfProtectionApplier,
     ) {}
 
     public function protect(ProtectPdfRequestDto $request): string

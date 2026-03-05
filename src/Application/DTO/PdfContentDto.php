@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class PdfContentDto
+final class PdfContentDto
 {
-    public function __construct(public string $content) {}
+    public function __construct(public readonly string $content) {}
 }

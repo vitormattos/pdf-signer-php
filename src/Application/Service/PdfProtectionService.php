@@ -7,9 +7,9 @@ namespace SignerPHP\Application\Service;
 use SignerPHP\Application\Contract\PdfProtectionEngineInterface;
 use SignerPHP\Application\DTO\ProtectPdfRequestDto;
 
-final readonly class PdfProtectionService
+final class PdfProtectionService
 {
-    public function __construct(private PdfProtectionEngineInterface $protectionEngine) {}
+    public function __construct(private readonly PdfProtectionEngineInterface $protectionEngine) {}
 
     public function protect(ProtectPdfRequestDto $request): string
     {

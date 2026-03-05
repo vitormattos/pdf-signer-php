@@ -6,16 +6,16 @@ namespace SignerPHP\Domain\ValueObject;
 
 use SignerPHP\Application\DTO\CertificateCredentialsDto;
 
-final readonly class VerifiedCertificate
+final class VerifiedCertificate
 {
     /**
      * @param  array<string, mixed>  $parsed
      * @param  array{cert: string, pkey: string, extracerts?: mixed}  $bundle
      */
     public function __construct(
-        public CertificateCredentialsDto $credentials,
-        public array $parsed,
-        public array $bundle,
+        public readonly CertificateCredentialsDto $credentials,
+        public readonly array $parsed,
+        public readonly array $bundle,
     ) {}
 
     public function isExpiredAt(int $timestamp): bool

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace SignerPHP\Infrastructure\Native\ValueObject;
 
-final readonly class SignatureTrustVerification
+final class SignatureTrustVerification
 {
     public function __construct(
-        public bool $valid,
-        public ?string $message = null,
+        public readonly bool $valid,
+        public readonly ?string $message = null,
     ) {}
 }

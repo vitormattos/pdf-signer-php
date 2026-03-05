@@ -15,13 +15,13 @@ use SignerPHP\Infrastructure\PdfCore\Service\DocumentTimestampObjectAssembler;
 use SignerPHP\Infrastructure\PdfCore\Signature;
 use SignerPHP\Infrastructure\PdfCore\Xref\Xref;
 
-final readonly class DocumentTimestampApplier implements DocumentTimestampApplierInterface
+final class DocumentTimestampApplier implements DocumentTimestampApplierInterface
 {
     public function __construct(
-        private PdfDocumentPreparer $documentPreparer = new PdfDocumentPreparer,
-        private XrefContentResolver $xrefContentResolver = new XrefContentResolver,
-        private DocumentTimestampObjectAssembler $timestampAssembler = new DocumentTimestampObjectAssembler,
-        private TimestampTokenProviderInterface $timestampTokenProvider = new OpenSslRfc3161TimestampTokenProvider,
+        private readonly PdfDocumentPreparer $documentPreparer = new PdfDocumentPreparer,
+        private readonly XrefContentResolver $xrefContentResolver = new XrefContentResolver,
+        private readonly DocumentTimestampObjectAssembler $timestampAssembler = new DocumentTimestampObjectAssembler,
+        private readonly TimestampTokenProviderInterface $timestampTokenProvider = new OpenSslRfc3161TimestampTokenProvider,
     ) {}
 
     public function apply(string $signedPdfContent, TimestampOptionsDto $options): string

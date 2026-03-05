@@ -6,16 +6,16 @@ namespace SignerPHP\Application\DTO;
 
 use InvalidArgumentException;
 
-final readonly class ProtectionOptionsDto
+final class ProtectionOptionsDto
 {
     public function __construct(
-        public ?string $ownerPassword = null,
-        public string $userPassword = '',
-        public bool $allowPrint = true,
-        public bool $allowCopy = true,
-        public bool $allowModify = true,
-        public int $keyLengthBits = 256,
-        public bool $encryptMetadata = true,
+        public readonly ?string $ownerPassword = null,
+        public readonly string $userPassword = '',
+        public readonly bool $allowPrint = true,
+        public readonly bool $allowCopy = true,
+        public readonly bool $allowModify = true,
+        public readonly int $keyLengthBits = 256,
+        public readonly bool $encryptMetadata = true,
     ) {
         if ($ownerPassword === '') {
             throw new InvalidArgumentException('Owner password cannot be an empty string.');

@@ -8,12 +8,12 @@ use SignerPHP\Infrastructure\Native\Contract\HttpClientInterface;
 use SignerPHP\Infrastructure\Native\Contract\ProcessRunnerInterface;
 use SignerPHP\Infrastructure\Native\Contract\SignatureRevocationEvidenceCollectorInterface;
 
-final readonly class OpenSslRevocationEvidenceCollector implements SignatureRevocationEvidenceCollectorInterface
+final class OpenSslRevocationEvidenceCollector implements SignatureRevocationEvidenceCollectorInterface
 {
     public function __construct(
-        private X509ExtensionUrlExtractor $urlExtractor = new X509ExtensionUrlExtractor,
-        private HttpClientInterface $httpClient = new CurlHttpClient,
-        private ProcessRunnerInterface $processRunner = new ShellProcessRunner,
+        private readonly X509ExtensionUrlExtractor $urlExtractor = new X509ExtensionUrlExtractor,
+        private readonly HttpClientInterface $httpClient = new CurlHttpClient,
+        private readonly ProcessRunnerInterface $processRunner = new ShellProcessRunner,
     ) {}
 
     public function collect(array $certificateChainDer): array

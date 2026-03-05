@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class SignatureMetadataDto
+final class SignatureMetadataDto
 {
     public function __construct(
-        public ?string $reason = null,
-        public ?string $location = null,
-        public ?SignatureActorDto $actor = null,
+        public readonly ?string $reason = null,
+        public readonly ?string $location = null,
+        public readonly ?SignatureActorDto $actor = null,
     ) {}
 }

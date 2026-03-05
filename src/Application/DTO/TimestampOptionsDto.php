@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace SignerPHP\Application\DTO;
 
-final readonly class TimestampOptionsDto
+final class TimestampOptionsDto
 {
-    public HashAlgorithm $hashAlgorithm;
+    public readonly HashAlgorithm $hashAlgorithm;
 
     /**
      * @var array<string, string>
      */
-    public array $customHeaders;
+    public readonly array $customHeaders;
 
     public function __construct(
-        public string $tsaUrl,
+        public readonly string $tsaUrl,
         HashAlgorithm|string $hashAlgorithm = HashAlgorithm::Sha256,
-        public bool $certReq = true,
-        public ?string $username = null,
-        public ?string $password = null,
-        public int $timeoutSeconds = 15,
-        public ?string $oauthClientId = null,
-        public ?string $oauthClientSecret = null,
-        public ?string $oauthTokenUrl = null,
+        public readonly bool $certReq = true,
+        public readonly ?string $username = null,
+        public readonly ?string $password = null,
+        public readonly int $timeoutSeconds = 15,
+        public readonly ?string $oauthClientId = null,
+        public readonly ?string $oauthClientSecret = null,
+        public readonly ?string $oauthTokenUrl = null,
         array $customHeaders = [],
     ) {
         $this->hashAlgorithm = HashAlgorithm::fromString($hashAlgorithm);

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace SignerPHP\Infrastructure\PdfCore;
 
-final readonly class XrefEntry
+final class XrefEntry
 {
     private function __construct(
-        private ?int $offset,
-        private ?int $objectStreamId,
-        private ?int $objectStreamPosition,
+        private readonly ?int $offset,
+        private readonly ?int $objectStreamId,
+        private readonly ?int $objectStreamPosition,
     ) {}
 
     public static function free(): self

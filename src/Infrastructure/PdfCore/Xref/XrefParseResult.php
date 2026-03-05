@@ -6,15 +6,15 @@ namespace SignerPHP\Infrastructure\PdfCore\Xref;
 
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValue;
 
-final readonly class XrefParseResult
+final class XrefParseResult
 {
     /**
      * @param  array<int, int|array{stmoid:int,pos:int}|null>  $table
      */
     public function __construct(
-        public array $table,
-        public PDFValue $trailer,
-        public string $minimumPdfVersion,
+        public readonly array $table,
+        public readonly PDFValue $trailer,
+        public readonly string $minimumPdfVersion,
     ) {}
 
     /**

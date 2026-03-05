@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace SignerPHP\Infrastructure\Native\ValueObject;
 
-final readonly class HttpResponse
+final class HttpResponse
 {
     public function __construct(
-        public int $statusCode,
-        public string $body,
-        public ?string $transportError = null,
+        public readonly int $statusCode,
+        public readonly string $body,
+        public readonly ?string $transportError = null,
     ) {}
 
     public function isSuccessful(): bool
