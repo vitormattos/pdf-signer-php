@@ -60,4 +60,79 @@ final class TimestampServiceTest extends TestCase
         self::assertSame(403, $result->statusCode);
         self::assertStringContainsString('Status: 403', (string) $result->message);
     }
+
+    public function test_request_token_base64_converts_hex_payload_from_provider(): void
+    {
+        $provider = new class implements TimestampTokenProviderInterface
+        {
+            public function requestTokenHex(string $signableDocument, array $byteRange, TimestampOptionsDto $options): string
+            {
+                return '414243';
+            }
+        };
+
+        $service = new TimestampService($provider);
+
+        self::assertSame('QUJD', $service->requestTokenBase64('probe', new TimestampOptionsDto('https://tsa.example')));
+    }
+
+    public function test_request_token_base64_throws_when_hex_is_invalid(): void
+    {
+        $provider = new class implements TimestampTokenProviderInterface
+        {
+            public function requestTokenHex(string $signableDocument, array $byteRange, TimestampOptionsDto $options): string
+            {
+                return 'invalid-hex';
+            }
+        };
+
+        $service = new TimestampService($provider);
+
+        $this->expectException(SignProcessException::class);
+        $this->expectExceptionMessage('Could not convert timestamp token hex to binary.');
+        set_error_handler(static function (): bool {
+            return true;
+        });
+        try {
+            $service->requestTokenBase64('probe', new TimestampOptionsDto('https://tsa.example'));
+        } finally {
+            restore_error_handler();
+        }
+    }
+
+    public function test_test_connection_returns_success_message_with_token_size(): void
+    {
+        $provider = new class implements TimestampTokenProviderInterface
+        {
+            public function requestTokenHex(string $signableDocument, array $byteRange, TimestampOptionsDto $options): string
+            {
+                return 'ABCD1234';
+            }
+        };
+
+        $service = new TimestampService($provider);
+        $result = $service->testConnection(new TimestampOptionsDto('https://tsa.example'), 'fixed-probe');
+
+        self::assertTrue($result->success);
+        self::assertNull($result->statusCode);
+        self::assertStringContainsString('8 hex chars', (string) $result->message);
+    }
+
+    public function test_test_connection_returns_failure_without_status_code_for_non_http_message(): void
+    {
+        $provider = new class implements TimestampTokenProviderInterface
+        {
+            public function requestTokenHex(string $signableDocument, array $byteRange, TimestampOptionsDto $options): string
+            {
+                throw new SignProcessException('Generic transport failure');
+            }
+        };
+
+        $service = new TimestampService($provider);
+        $result = $service->testConnection(new TimestampOptionsDto('https://tsa.example'));
+
+        self::assertFalse($result->success);
+        self::assertNull($result->statusCode);
+        self::assertSame('Generic transport failure', $result->message);
+    }
 }

@@ -67,4 +67,21 @@ final class XrefContentResolverServiceTest extends TestCase
         self::assertStringNotContainsString('/DecodeParms', $raw);
         self::assertStringNotContainsString('/Filter', $raw);
     }
+
+    public function test_resolve_uses_pdf_header_version_when_it_is_lower_than_xref_version_for_v14_documents(): void
+    {
+        $document = new PdfDocument;
+        $document->setBufferFromString('%PDF-1.3');
+        $document->setPdfVersion('PDF-1.3');
+        $document->setXrefTableVersion('1.4');
+        $document->setXrefPosition(12);
+        $document->setMaxOid(1);
+        $document->setTrailerObject(new PDFValueObject(['Root' => '1 0 R']));
+
+        $resolver = new XrefContentResolver;
+        $buffer = $resolver->resolve($document, [0 => 0, 1 => 10], 40);
+
+        self::assertStringContainsString("trailer\n", $buffer->raw());
+        self::assertStringNotContainsString('/Type/XRef', $buffer->raw());
+    }
 }

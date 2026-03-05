@@ -54,7 +54,7 @@
     "minimum-stability": "dev",
     "scripts": {
         "tests": "vendor/bin/pest --configuration phpunit.xml tests",
-        "tests:coverage": "vendor/bin/pest --configuration phpunit.xml tests --coverage --min=98.1",
+        "tests:coverage": "vendor/bin/pest --configuration phpunit.xml tests --coverage --min=98.5",
         "pint:fix": "vendor/bin/pint",
         "pint:check": "vendor/bin/pint --test",
         "security:audit": "composer audit --no-interaction",

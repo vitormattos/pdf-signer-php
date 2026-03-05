@@ -54,4 +54,24 @@ final class TimestampBuilderTest extends TestCase
         self::assertNull($result->statusCode);
         self::assertSame('616263', strtolower($hex));
     }
+
+    public function test_builder_can_request_token_base64(): void
+    {
+        $provider = new class implements TimestampTokenProviderInterface
+        {
+            public function requestTokenHex(string $signableDocument, array $byteRange, TimestampOptionsDto $options): string
+            {
+                return '4142';
+            }
+        };
+
+        $service = new TimestampService($provider);
+
+        $base64 = TimestampBuilder::new($service)
+            ->withOptions(new TimestampOptionsDto('https://tsa.example'))
+            ->withContent('ab')
+            ->requestTokenBase64();
+
+        self::assertSame('QUI=', $base64);
+    }
 }

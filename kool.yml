@@ -7,6 +7,7 @@ scripts:
   php: kool exec app php
   composer: kool exec app composer
   pest: kool exec app php ./vendor/bin/pest
+  pest:coverage: kool exec app php ./vendor/bin/pest --configuration phpunit.xml tests --coverage --min=98.5
   pint: kool exec app php ./vendor/bin/pint
   rector: kool exec app php vendor/bin/rector
   bash: docker compose exec app bash
