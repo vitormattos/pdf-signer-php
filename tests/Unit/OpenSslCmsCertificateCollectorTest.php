@@ -24,6 +24,13 @@ final class OpenSslCmsCertificateCollectorTest extends TestCase
         self::assertSame([], $collector->collectDerCertificates('NOT-HEX'));
     }
 
+    public function test_collect_returns_empty_for_odd_length_hex(): void
+    {
+        $collector = new OpenSslCmsCertificateCollector;
+
+        self::assertSame([], $collector->collectDerCertificates('A'));
+    }
+
     public function test_collect_returns_empty_for_zero_padded_placeholder(): void
     {
         $collector = new OpenSslCmsCertificateCollector;

@@ -112,6 +112,32 @@ final class IcpBrasilTrustAnchorBundleProviderTest extends TestCase
         }
     }
 
+    public function test_build_bundle_from_directory_skips_existing_bundle_file_empty_and_invalid_entries(): void
+    {
+        if (! function_exists('openssl_pkey_new')) {
+            self::markTestSkipped('OpenSSL extension is required.');
+        }
+
+        $directory = sys_get_temp_dir().'/signer-php-test-anchors-'.uniqid('', true);
+        self::assertTrue(mkdir($directory, 0775, true) || is_dir($directory));
+
+        $validPem = $this->createCertificatePem('C');
+        file_put_contents($directory.'/a-valid.pem', $validPem);
+        file_put_contents($directory.'/b-empty.pem', '');
+        file_put_contents($directory.'/c-invalid.pem', 'not-a-certificate');
+        file_put_contents($directory.'/trust-anchors-bundle.pem', 'stale-bundle');
+
+        $provider = new IcpBrasilTrustAnchorBundleProvider($this->httpClientWithBody('unused'));
+        $method = new \ReflectionMethod($provider, 'buildBundleFromDirectory');
+        $method->setAccessible(true);
+
+        $bundle = $method->invoke($provider, $directory);
+
+        self::assertIsString($bundle);
+        self::assertStringContainsString('BEGIN CERTIFICATE', $bundle);
+        self::assertStringNotContainsString('stale-bundle', $bundle);
+    }
+
     private function httpClientWithBody(string $body): HttpClientInterface
     {
         return new class($body) implements HttpClientInterface

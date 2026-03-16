@@ -9,6 +9,7 @@ use PHPUnit\Framework\TestCase;
 use SignerPHP\Application\DTO\BrazilSignaturePolicyOptionsDto;
 use SignerPHP\Application\DTO\BrazilTrustAnchorsOptionsDto;
 use SignerPHP\Application\DTO\CertificateCredentialsDto;
+use SignerPHP\Application\DTO\CertificationLevel;
 use SignerPHP\Application\DTO\HashAlgorithm;
 use SignerPHP\Application\DTO\PdfContentDto;
 use SignerPHP\Application\DTO\ProtectionOptionsDto;
@@ -116,6 +117,29 @@ final class DtoTest extends TestCase
 
         self::assertSame('application/octet-stream', $timestamp->customHeaders['Content-Type'] ?? null);
         self::assertSame('abc', $timestamp->customHeaders['X-Custom-Header'] ?? null);
+    }
+
+    public function test_timestamp_options_dto_ignores_invalid_custom_headers(): void
+    {
+        $timestamp = new TimestampOptionsDto(
+            tsaUrl: 'https://tsa.example.com',
+            customHeaders: [
+                ' valid_name ' => 'ok',
+                '' => 'empty-name-must-be-ignored',
+                'x-invalid' => 123,
+                10 => 'numeric-index-must-be-ignored',
+            ],
+        );
+
+        self::assertSame(['Valid-Name' => 'ok'], $timestamp->customHeaders);
+    }
+
+    public function test_certification_level_from_int_maps_known_values_and_returns_null_for_unknown(): void
+    {
+        self::assertSame(CertificationLevel::NoChangesAllowed, CertificationLevel::fromInt(1));
+        self::assertSame(CertificationLevel::FormFillAndSignatures, CertificationLevel::fromInt(2));
+        self::assertSame(CertificationLevel::FormFillSignaturesAndAnnotations, CertificationLevel::fromInt(3));
+        self::assertNull(CertificationLevel::fromInt(99));
     }
 
     public function test_brazil_signature_policy_options_dto_builds_timestamp_options(): void

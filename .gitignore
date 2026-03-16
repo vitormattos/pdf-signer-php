@@ -1,6 +1,6 @@
 vendor/
 .idea/
 file-tests/
-.phpunit.result.cache
 .deptrac.cache
+.phpunit.result.cache
 build/
