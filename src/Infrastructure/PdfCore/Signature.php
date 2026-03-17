@@ -59,7 +59,7 @@ class Signature
 
     public function withoutAppearance(): self
     {
-        $this->appearance->withImage(null);
+        $this->appearance->withBackgroundImage(null);
 
         return $this;
     }

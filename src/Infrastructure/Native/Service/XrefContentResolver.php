@@ -59,7 +59,7 @@ final class XrefContentResolver implements XrefContentResolverInterface
         $trailer['Size'] = $pdfDocument->getMaxOid() + 1;
         $trailer['Type'] = '/XRef';
 
-        $id2 = md5((string) new DateTime()->getTimestamp().'-'.$pdfDocument->getXrefPosition().$pdfDocument->getTrailerObject());
+        $id2 = md5((string) (new DateTime)->getTimestamp().'-'.$pdfDocument->getXrefPosition().$pdfDocument->getTrailerObject());
         $currentId = $trailer['ID'][0] ?? new PDFValueHexString(strtoupper(md5((string) $pdfDocument->getTrailerObject())));
         $trailer['ID'] = [$currentId, new PDFValueHexString(strtoupper($id2))];
 

@@ -3,3 +3,4 @@ vendor/
 file-tests/
 .deptrac.cache
 .phpunit.result.cache
+build/

@@ -4,16 +4,26 @@ declare(strict_types=1);
 
 namespace SignerPHP\Infrastructure\PdfCore;
 
+use SignerPHP\Application\DTO\SignatureAppearanceXObjectDto;
 use SignerPHP\Infrastructure\PdfCore\Exception\PdfCoreSigningException;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValue;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueObject;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueReference;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueSimple;
 use SignerPHP\Infrastructure\PdfCore\Utils\Img;
+use SignerPHP\Infrastructure\PdfCore\Utils\Str;
 
 class SignatureAppearance
 {
-    private ?string $imageFileName = null;
+    private ?string $backgroundImagePath = null;
+
+    private ?SignatureAppearanceXObjectDto $xObject = null;
+
+    /** Path to the signature image, placed inside the n2 xObject layer at $signatureImageFrame. */
+    private ?string $signatureImagePath = null;
+
+    /** [x, y, w, h] placement within the bbox for the signature image; null = full bbox. */
+    private ?array $signatureImageFrame = null;
 
     private array $rectToAppear = [0, 0, 0, 0];
 
@@ -46,9 +56,19 @@ class SignatureAppearance
         return $this->pageToAppear;
     }
 
-    public function getImage(): ?string
+    public function getBackgroundImage(): ?string
     {
-        return $this->imageFileName;
+        return $this->backgroundImagePath;
+    }
+
+    public function getSignatureImage(): ?string
+    {
+        return $this->signatureImagePath;
+    }
+
+    public function getXObject(): ?SignatureAppearanceXObjectDto
+    {
+        return $this->xObject;
     }
 
     public function addSignAppearanceInPage(int $pageToAppear): self
@@ -69,9 +89,30 @@ class SignatureAppearance
         return $this;
     }
 
-    public function withImage(?string $imageFileName): self
+    public function withBackgroundImage(?string $backgroundImagePath): self
     {
-        $this->imageFileName = $imageFileName;
+        $this->backgroundImagePath = $backgroundImagePath;
+
+        return $this;
+    }
+
+    public function withXObject(?SignatureAppearanceXObjectDto $xObject): self
+    {
+        $this->xObject = $xObject;
+
+        return $this;
+    }
+
+    public function withSignatureImage(?string $signatureImagePath): self
+    {
+        $this->signatureImagePath = $signatureImagePath;
+
+        return $this;
+    }
+
+    public function withSignatureImageFrame(?array $signatureImageFrame): self
+    {
+        $this->signatureImageFrame = $signatureImageFrame;
 
         return $this;
     }
@@ -123,6 +164,86 @@ class SignatureAppearance
             ],
         ]);
 
+        // Create n0 layer for background image (if provided)
+        $layerN0 = $pdfDocument->createObject([
+            'BBox' => $bbox,
+            'Subtype' => '/Form',
+            'Type' => '/XObject',
+            'Resources' => new PDFValueObject,
+        ]);
+
+        if ($this->backgroundImagePath !== null) {
+            // "Contain" scaling: scale the image to fit inside the bbox while
+            // preserving its natural aspect ratio, then centre it.
+            $naturalSize = $this->imageNaturalSize($this->backgroundImagePath);
+            if ($naturalSize === null) {
+                throw new PdfCoreSigningException('Could not determine natural size of background image.');
+            }
+
+            $scale = min($bbox[2] / $naturalSize[0], $bbox[3] / $naturalSize[1]);
+            $drawW = $naturalSize[0] * $scale;
+            $drawH = $naturalSize[1] * $scale;
+            $drawX = ($bbox[2] - $drawW) / 2.0;
+            $drawY = ($bbox[3] - $drawH) / 2.0;
+
+            $result = Img::addImage(
+                static fn (array $value): PDFObject => $pdfDocument->createObject($value),
+                $this->backgroundImagePath,
+                $drawX,
+                $drawY,
+                $drawW,
+                $drawH,
+                (float) $pageRotation->val()
+            );
+            $layerN0['Resources'] = $result['resources'];
+            $layerN0->setStream($result['command'], false);
+        } else {
+            $layerN0->setStream('% DSBlank'.PHP_EOL, false);
+        }
+
+        // Create n2 layer for xObject text
+        $layerN2 = $pdfDocument->createObject([
+            'BBox' => $bbox,
+            'Subtype' => '/Form',
+            'Type' => '/XObject',
+            'Resources' => new PDFValueObject,
+        ]);
+
+        $n2Stream = $this->xObject?->stream ?? '';
+        $n2Resources = $this->xObject?->resources ?? [];
+
+        // Embed user image (e.g. drawn signature) in the n2 layer at the specified rect.
+        // This allows the background to live in n0 (full bbox) while the user image
+        // occupies only its designated area (e.g. left half) without distortion.
+        $imgResult = null;
+        if ($this->signatureImagePath !== null) {
+            [$imgX, $imgY, $imgW, $imgH] = $this->signatureImageFrame ?? [0, 0, $bbox[2], $bbox[3]];
+            $imgResult = Img::addImage(
+                static fn (array $value): PDFObject => $pdfDocument->createObject($value),
+                $this->signatureImagePath,
+                (float) $imgX,
+                (float) $imgY,
+                (float) $imgW,
+                (float) $imgH,
+                (float) $pageRotation->val()
+            );
+            // Prepend image draw command so it appears behind the text operators
+            $n2Stream = $imgResult['command'].PHP_EOL.$n2Stream;
+        }
+
+        $layerN2['Resources'] = new PDFValueObject($n2Resources);
+        $layerN2->setStream($n2Stream, false);
+
+        // After building the PDFObject, inject the image XObject reference into its resources
+        if ($imgResult !== null) {
+            if (! isset($layerN2['Resources']['XObject'])) {
+                $layerN2['Resources']['XObject'] = new PDFValueObject([]);
+            }
+            foreach ($imgResult['resources']->val()['XObject']->val() as $imgKey => $imgRef) {
+                $layerN2['Resources']['XObject'][$imgKey] = $imgRef;
+            }
+        }
+
         $containerFormObject = $pdfDocument->createObject([
             'BBox' => $bbox,
             'Subtype' => '/Form',
@@ -133,35 +254,6 @@ class SignatureAppearance
             ]],
         ]);
         $containerFormObject->setStream("q 1 0 0 1 0 0 cm /n0 Do Q\nq 1 0 0 1 0 0 cm /n2 Do Q\n", false);
-
-        $layerN0 = $pdfDocument->createObject([
-            'BBox' => [0.0, 0.0, 100.0, 100.0],
-            'Subtype' => '/Form',
-            'Type' => '/XObject',
-            'Resources' => new PDFValueObject,
-        ]);
-
-        $layerN0->setStream('% DSBlank'.PHP_EOL, false);
-
-        $layerN2 = $pdfDocument->createObject([
-            'BBox' => $bbox,
-            'Subtype' => '/Form',
-            'Type' => '/XObject',
-            'Resources' => new PDFValueObject,
-        ]);
-
-        $result = Img::addImage(
-            $this->pdfDocument->createObject(...),
-            $this->imageFileName,
-            $bbox[0],
-            $bbox[1],
-            $bbox[2],
-            $bbox[3],
-            (float) $pageRotation->val()
-        );
-
-        $layerN2['Resources'] = $result['resources'];
-        $layerN2->setStream($result['command'], false);
 
         $containerFormObject['Resources']['XObject']['n0'] = new PDFValueReference($layerN0->getOid());
         $containerFormObject['Resources']['XObject']['n2'] = new PDFValueReference($layerN2->getOid());
@@ -209,5 +301,38 @@ class SignatureAppearance
         }
 
         return $this->pageRotation;
+    }
+
+    /**
+     * Returns the natural pixel dimensions [width, height] of the given image
+     * source, or null when they cannot be determined.
+     *
+     * Accepts the same three source formats that Img::addImage() accepts:
+     *  • regular file path
+     *  • "@" prefix  → raw binary content follows
+     *  • base64 string → decoded to binary
+     *
+     * @return array{0:int,1:int}|null
+     */
+    private function imageNaturalSize(string $source): ?array
+    {
+        if ($source === '') {
+            return null;
+        }
+
+        if ($source[0] === '@') {
+            $info = @getimagesizefromstring(substr($source, 1));
+        } elseif (Str::isBase64($source)) {
+            $decoded = base64_decode($source, true);
+            $info = $decoded !== false ? @getimagesizefromstring($decoded) : false;
+        } else {
+            $info = @getimagesize($source);
+        }
+
+        if (! is_array($info) || $info[0] <= 0 || $info[1] <= 0) {
+            return null;
+        }
+
+        return [(int) $info[0], (int) $info[1]];
     }
 }

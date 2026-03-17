@@ -14,9 +14,9 @@ final class DefaultSignatureAppearanceProviderTest extends TestCase
         $provider = new DefaultSignatureAppearanceProvider;
         $appearance = $provider->makeDefault();
 
-        self::assertIsString($appearance->imagePath);
-        self::assertStringContainsString('default-signature-stamp.png', $appearance->imagePath ?? '');
-        self::assertFileExists($appearance->imagePath ?? '');
+        self::assertIsString($appearance->backgroundImagePath);
+        self::assertStringContainsString('default-signature-stamp.png', $appearance->backgroundImagePath ?? '');
+        self::assertFileExists($appearance->backgroundImagePath ?? '');
         self::assertSame([36, 36, 276, 120], $appearance->normalizedRect());
         self::assertSame(0, $appearance->page);
     }
@@ -30,8 +30,8 @@ final class DefaultSignatureAppearanceProviderTest extends TestCase
         rename($assetPath, $backupPath);
         try {
             $appearance = (new DefaultSignatureAppearanceProvider)->makeDefault();
-            self::assertIsString($appearance->imagePath);
-            self::assertStringStartsWith('iVBORw0KGgo', $appearance->imagePath ?? '');
+            self::assertIsString($appearance->backgroundImagePath);
+            self::assertStringStartsWith('iVBORw0KGgo', $appearance->backgroundImagePath ?? '');
         } finally {
             rename($backupPath, $assetPath);
         }

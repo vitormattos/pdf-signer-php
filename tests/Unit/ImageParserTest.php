@@ -89,9 +89,10 @@ final class ImageParserTest extends TestCase
         $parser->parsePng($png);
     }
 
-    public function test_parse_png_throws_for_16_bit_depth(): void
+    public function test_parse_png_supports_16_bit_depth(): void
     {
         $parser = new ImageParser;
+        $idat = (string) gzcompress("\x00\x12\x34\x56\x78\x9A\xBC");
         $png = $this->buildPng(
             width: 1,
             height: 1,
@@ -100,11 +101,37 @@ final class ImageParserTest extends TestCase
             compressionMethod: 0,
             filterMethod: 0,
             interlaceMethod: 0,
+            chunks: [
+                $this->chunk('IDAT', $idat),
+                $this->chunk('IEND', ''),
+            ]
+        );
+
+        $info = $parser->parsePng($png);
+
+        self::assertSame(1, $info['w']);
+        self::assertSame(1, $info['h']);
+        self::assertSame(16, $info['bpc']);
+        self::assertSame('DeviceRGB', $info['cs']);
+        self::assertSame('FlateDecode', $info['f']);
+    }
+
+    public function test_parse_png_throws_for_bit_depth_above_16(): void
+    {
+        $parser = new ImageParser;
+        $png = $this->buildPng(
+            width: 1,
+            height: 1,
+            bits: 24,
+            colorType: 2,
+            compressionMethod: 0,
+            filterMethod: 0,
+            interlaceMethod: 0,
             chunks: [$this->chunk('IEND', '')]
         );
 
         $this->expectException(Exception::class);
-        $this->expectExceptionMessage('16-bit depth not supported');
+        $this->expectExceptionMessage('Unsupported bit depth: 24');
 
         $parser->parsePng($png);
     }

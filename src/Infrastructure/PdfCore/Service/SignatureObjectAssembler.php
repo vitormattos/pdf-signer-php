@@ -35,7 +35,7 @@ final class SignatureObjectAssembler
         assert($signatureObject instanceof SignatureObject);
         $annotationObject['V'] = new PDFValueReference($signatureObject->getOid());
 
-        if ($appearance->getImage() !== null) {
+        if ($appearance->getBackgroundImage() !== null || $appearance->getXObject() !== null || $appearance->getSignatureImage() !== null) {
             $pageRotation = $pageObject['Rotate'] ?? new PDFValueSimple(0);
             $annotationObject = $appearance
                 ->withPageRotate($pageRotation)

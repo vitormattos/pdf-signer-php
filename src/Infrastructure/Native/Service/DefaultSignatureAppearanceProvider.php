@@ -17,7 +17,7 @@ final class DefaultSignatureAppearanceProvider implements DefaultSignatureAppear
     public function makeDefault(): SignatureAppearanceDto
     {
         return new SignatureAppearanceDto(
-            imagePath: $this->resolveDefaultImagePath(),
+            backgroundImagePath: $this->resolveDefaultImagePath(),
             rect: [36, 36, 276, 120],
             page: 0,
         );

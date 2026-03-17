@@ -71,9 +71,9 @@ final class Img
                 'w' => $info['w'],
                 'h' => $info['h'],
                 'cs' => 'DeviceGray',
-                'bpc' => 8,
+                'bpc' => $info['bpc'],
                 'f' => $info['f'],
-                'dp' => '/Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns '.$info['w'],
+                'dp' => '/Predictor 15 /Colors 1 /BitsPerComponent '.$info['bpc'].' /Columns '.$info['w'],
                 'data' => $info['smask'],
             ];
 

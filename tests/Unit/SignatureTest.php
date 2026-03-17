@@ -249,7 +249,7 @@ final class SignatureTest extends TestCase
         $document->addObject($page);
         $document->acquirePagesInfo();
 
-        $appearance = SignatureAppearance::new()->withImage(null)->withRect([0, 0, 0, 0]);
+        $appearance = SignatureAppearance::new()->withBackgroundImage(null)->withRect([0, 0, 0, 0]);
         Signature::new()->withAppearance($appearance); // keeps API exercised
 
         return $document;

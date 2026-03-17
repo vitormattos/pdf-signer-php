@@ -17,7 +17,9 @@ If you need backend PDF signing with cryptographic validity, this library provid
 - PKCS#12 (`.pfx/.p12`) digital signature
 - Fluent builder API (`Signer::signer()`)
 - Invisible signature
-- Visible signature with image (`PNG`/`JPEG`)
+- Visible signature with background image (`PNG`/`JPEG`), contain-scaled and centred
+- Visible signature with drawn signature image on a configurable sub-area of the bbox
+- Visible signature with custom PDF content stream (text, graphics) in the n2 layer
 - Automatic default visible appearance (built-in fallback)
 - Signature metadata (`name`, `contactInfo`, `reason`, `location`)
 - DocMDP certification (levels 1, 2 and 3)
@@ -34,7 +36,7 @@ If you need backend PDF signing with cryptographic validity, this library provid
 
 ## Requirements
 
-- PHP `^8.4`
+- PHP `^8.2`
 - `ext-openssl`
 - `ext-curl`
 - recommended: `ext-zlib` and `ext-fileinfo`
@@ -102,7 +104,9 @@ $signedPdf = Signer::signer()
  ->sign();
 ```
 
-### 3) Visible signature with image
+### 3) Visible signature with background image
+
+The image is placed in the n0 layer and scaled with contain logic (aspect ratio preserved, centred inside the bbox).
 
 ```php
 <?php
@@ -111,7 +115,7 @@ use SignerPHP\Application\DTO\SignatureAppearanceDto;
 use SignerPHP\Presentation\Signer;
 
 $appearance = new SignatureAppearanceDto(
- imagePath: '/tmp/signature.png',
+ backgroundImagePath: '/tmp/stamp.png',
  rect: [350, 770, 500, 830], // [x1, y1, x2, y2]
  page: 0 // 0-based index
 );
@@ -123,7 +127,19 @@ $signedPdf = Signer::signer()
  ->sign();
 ```
 
-### 4) Visible signature with base64 image
+A base64-encoded string is also accepted:
+
+```php
+$appearance = new SignatureAppearanceDto(
+ backgroundImagePath: base64_encode(file_get_contents('/tmp/stamp.png')),
+ rect: [350, 770, 500, 830],
+ page: 0
+);
+```
+
+### 3.1) Visible signature with signer's drawn image
+
+To show the signer's drawn PNG on a specific area of the bbox (e.g. left half), use `signatureImagePath` and `signatureImageFrame`. This places the image as an external XObject in the n2 layer, independently from the n0 background.
 
 ```php
 <?php
@@ -131,12 +147,15 @@ $signedPdf = Signer::signer()
 use SignerPHP\Application\DTO\SignatureAppearanceDto;
 use SignerPHP\Presentation\Signer;
 
-$base64Image = base64_encode(file_get_contents('/tmp/signature.png'));
+$bboxW = 150; // urx - llx
+$bboxH = 60;  // ury - lly
 
 $appearance = new SignatureAppearanceDto(
- imagePath: $base64Image,
+ backgroundImagePath: null,           // no background stamp
  rect: [350, 770, 500, 830],
- page: 0
+ page: 0,
+ signatureImagePath: '/tmp/drawn-signature.png',
+ signatureImageFrame: [0.0, 0.0, $bboxW / 2, (float) $bboxH], // left half
 );
 
 $signedPdf = Signer::signer()
@@ -146,7 +165,41 @@ $signedPdf = Signer::signer()
  ->sign();
 ```
 
-### 4.1) Disable default appearance (invisible signature)
+### 3.2) Visible signature with custom content stream (n2 layer)
+
+To embed arbitrary PDF text or graphics operators in the n2 layer — for example, the signer's name, date and reason — pass a `SignatureAppearanceXObjectDto` with the stream and its resource dictionary.
+
+```php
+<?php
+
+use SignerPHP\Application\DTO\SignatureAppearanceDto;
+use SignerPHP\Application\DTO\SignatureAppearanceXObjectDto;
+use SignerPHP\Presentation\Signer;
+
+$stream = "BT\n/F1 9 Tf\n0 0 0 rg\n4 44 Td\n(Signed by: Maria Silva) Tj\n0 -12 Td\n(Date: 2026-03-04) Tj\nET\n";
+
+$appearance = new SignatureAppearanceDto(
+ backgroundImagePath: '/tmp/stamp.png',
+ rect: [350, 770, 500, 830],
+ page: 0,
+ xObject: new SignatureAppearanceXObjectDto(
+     stream: $stream,
+     resources: [
+         'Font' => [
+             'F1' => ['Type' => '/Font', 'Subtype' => '/Type1', 'BaseFont' => '/Helvetica'],
+         ],
+     ],
+ ),
+);
+
+$signedPdf = Signer::signer()
+ ->withPdfContent(file_get_contents('/tmp/input.pdf'))
+ ->withCertificatePath('/tmp/certificate.pfx', 'secret-password')
+ ->withAppearance($appearance)
+ ->sign();
+```
+
+### 4) Disable default appearance (invisible signature)
 
 ```php
 <?php
@@ -743,7 +796,7 @@ php bin/signer-sign --help
   - Baseline-LT: Baseline-T + `DSS` (`Certs`, `OCSPs`, `CRLs`, `VRI`) with best-effort evidence collection depending on chain endpoint availability
   - Baseline-LTA: Baseline-LT + additional archival `Document Timestamp`
 - Default appearance uses `page = 0` and an internal default rectangle; for full control use `withAppearance(...)`.
-- Some PNG variations (specific filters/modes) may be rejected.
+- Supported PNG bit depths: 1, 2, 4, 8, and 16 bits per channel. 16-bit RGBA and grayscale-alpha PNGs are fully supported including SMask alpha extraction.
 - Current PDF parser technical scope:
   - Objects with generation different from `0` are not supported
   - Extended object streams are not supported
