@@ -247,8 +247,7 @@ endstream
         return $this->value->offsetExists($field);
     }
 
-    #[\ReturnTypeWillChange]
-    public function offsetGet($field)
+    public function offsetGet($field): mixed
     {
         return $this->value[$field];
     }
