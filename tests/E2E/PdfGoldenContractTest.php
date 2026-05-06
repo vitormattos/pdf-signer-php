@@ -27,6 +27,35 @@ final class PdfGoldenContractTest extends TestCase
         $report = json_decode($reportJson, true);
         self::assertIsArray($report);
 
+        self::assertArrayHasKey('observability', $report);
+        self::assertIsArray($report['observability']);
+
+        self::assertArrayHasKey('xref', $report['observability']);
+        self::assertArrayHasKey('mode', $report['observability']['xref']);
+        self::assertContains($report['observability']['xref']['mode'], ['table', 'stream', 'hybrid', 'unknown']);
+
+        self::assertArrayHasKey('incremental_revisions', $report['observability']);
+        self::assertIsArray($report['observability']['incremental_revisions']);
+        self::assertArrayHasKey('count', $report['observability']['incremental_revisions']);
+        self::assertArrayHasKey('boundaries', $report['observability']['incremental_revisions']);
+        self::assertIsArray($report['observability']['incremental_revisions']['boundaries']);
+
+        self::assertArrayHasKey('byte_range', $report['observability']);
+        self::assertArrayHasKey('planning', $report['observability']['byte_range']);
+        self::assertArrayHasKey('final_verification', $report['observability']['byte_range']);
+        self::assertIsArray($report['observability']['byte_range']['final_verification']);
+
+        self::assertArrayHasKey('signature_dictionary_assembly', $report['observability']);
+        self::assertArrayHasKey('details', $report['observability']['signature_dictionary_assembly']);
+        self::assertIsArray($report['observability']['signature_dictionary_assembly']['details']);
+
+        self::assertArrayHasKey('appearance_stream_generation', $report['observability']);
+        self::assertArrayHasKey('has_appearance', $report['observability']['appearance_stream_generation']);
+
+        self::assertArrayHasKey('dss_vri_assembly', $report['observability']);
+        self::assertArrayHasKey('has_dss', $report['observability']['dss_vri_assembly']);
+        self::assertArrayHasKey('has_vri', $report['observability']['dss_vri_assembly']);
+
         $actual = [
             'has_signatures' => (bool) ($report['signatures']['has_signatures'] ?? false),
             'count' => (int) ($report['signatures']['count'] ?? 0),
