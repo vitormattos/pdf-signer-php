@@ -25,7 +25,8 @@ final class PdfStructureInspector
 
         $startxref = null;
         if (preg_match_all('/startxref\s*([0-9]+)\s*%%EOF/ms', $pdfContent, $matches) > 0) {
-            $last = $matches[1][count($matches[1]) - 1] ?? null;
+            $startxrefMatches = $matches[1] ?? [];
+            $last = $startxrefMatches === [] ? null : end($startxrefMatches);
             if (is_string($last) && $last !== '') {
                 $startxref = (int) $last;
             }
