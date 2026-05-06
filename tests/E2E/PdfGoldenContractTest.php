@@ -96,7 +96,7 @@ final class PdfGoldenContractTest extends TestCase
         $signedTempPath = tempnam(sys_get_temp_dir(), 'signerphp-e2e-signed-');
         self::assertIsString($signedTempPath);
         self::assertNotSame('', $signedTempPath);
-        file_put_contents($signedTempPath, $signed);
+        self::assertNotFalse(file_put_contents($signedTempPath, $signed));
 
         $reportJson = $this->runCommand([
             PHP_BINARY,
@@ -142,6 +142,7 @@ final class PdfGoldenContractTest extends TestCase
         foreach ($planning['revision_mapping'] as $mappingEntry) {
             self::assertIsArray($mappingEntry);
             self::assertTrue((bool) ($mappingEntry['fits_revision_boundary'] ?? false));
+            self::assertIsInt($mappingEntry['second_part_offset'] ?? null);
             self::assertIsInt($mappingEntry['revision_index'] ?? null);
             self::assertIsInt($mappingEntry['revision_end'] ?? null);
         }
@@ -192,7 +193,7 @@ final class PdfGoldenContractTest extends TestCase
         $signedTempPath = tempnam(sys_get_temp_dir(), 'signerphp-e2e-multisigned-');
         self::assertIsString($signedTempPath);
         self::assertNotSame('', $signedTempPath);
-        file_put_contents($signedTempPath, $secondSigned);
+        self::assertNotFalse(file_put_contents($signedTempPath, $secondSigned));
 
         $reportJson = $this->runCommand([
             PHP_BINARY,
@@ -222,6 +223,8 @@ final class PdfGoldenContractTest extends TestCase
 
         foreach ($planning['revision_mapping'] as $mappingEntry) {
             self::assertTrue((bool) ($mappingEntry['fits_revision_boundary'] ?? false));
+            self::assertIsInt($mappingEntry['second_part_offset'] ?? null);
+            self::assertIsInt($mappingEntry['revision_index'] ?? null);
         }
     }
 
