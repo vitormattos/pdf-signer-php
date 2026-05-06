@@ -132,10 +132,21 @@ final class ByteRangeInspector
         );
 
         $hasOverlap = false;
-        $count = count($ranges);
+        $orderedRanges = array_values($ranges);
+        $count = count($orderedRanges);
         for ($i = 0; $i < $count - 1; $i++) {
+            $left = $orderedRanges[$i] ?? null;
+            if (! is_array($left)) {
+                continue;
+            }
+
             for ($j = $i + 1; $j < $count; $j++) {
-                if ($ranges[$i]['start2'] < $ranges[$j]['covered_end'] && $ranges[$j]['start2'] < $ranges[$i]['covered_end']) {
+                $right = $orderedRanges[$j] ?? null;
+                if (! is_array($right)) {
+                    continue;
+                }
+
+                if ($left['start2'] < $right['covered_end'] && $right['start2'] < $left['covered_end']) {
                     $hasOverlap = true;
                     break 2;
                 }
@@ -143,11 +154,14 @@ final class ByteRangeInspector
         }
 
         $progressionOk = true;
-        for ($i = 1; $i < $count; $i++) {
-            if ($ranges[$i]['covered_end'] <= $ranges[$i - 1]['covered_end']) {
+        $previousCoveredEnd = null;
+        foreach ($orderedRanges as $range) {
+            if ($previousCoveredEnd !== null && $range['covered_end'] <= $previousCoveredEnd) {
                 $progressionOk = false;
                 break;
             }
+
+            $previousCoveredEnd = $range['covered_end'];
         }
 
         return [
