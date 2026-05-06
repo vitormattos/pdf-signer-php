@@ -164,6 +164,18 @@ final class PdfGoldenContractTest extends TestCase
         self::assertFalse((bool) ($consistency['has_overlap'] ?? true), 'Signed PDF should have no ByteRange overlaps');
         self::assertTrue((bool) ($consistency['all_start_from_zero'] ?? false), 'Single-sig ByteRange should start from zero');
 
+        $revocationEndpoints = $report['revocation_endpoints'] ?? [];
+        self::assertIsArray($revocationEndpoints);
+        self::assertNotEmpty($revocationEndpoints);
+        $firstSigEndpoints = $revocationEndpoints[0] ?? null;
+        self::assertIsArray($firstSigEndpoints);
+        self::assertArrayHasKey('cms_info', $firstSigEndpoints);
+        $cmsInfo = $firstSigEndpoints['cms_info'];
+        self::assertIsArray($cmsInfo);
+        self::assertNotNull($cmsInfo['digest_algorithm'], 'CMS digest_algorithm should be extractable');
+        self::assertNotNull($cmsInfo['signature_algorithm'], 'CMS signature_algorithm should be extractable');
+        self::assertNotNull($cmsInfo['cms_signing_time'], 'CMS signing time should be extractable');
+
         $actual = [
             'has_signatures' => $validation->hasSignatures,
             'count' => count($validation->entries),

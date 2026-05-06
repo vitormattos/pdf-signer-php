@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 use SignerPHP\Presentation\Signer;
 use SignerPHP\Infrastructure\Native\Service\OpenSslCmsCertificateCollector;
+use SignerPHP\Infrastructure\Native\Service\OpenSslCmsSignerInfoInspector;
 use SignerPHP\Infrastructure\Native\Service\PdfSignatureExtractor;
 use SignerPHP\Infrastructure\Native\Service\X509ExtensionUrlExtractor;
 
@@ -516,6 +517,7 @@ $docTimestampCount = max((int) $docTimestampTypeCount, (int) $docTimestampSubFil
 
 $signatureExtractor = new PdfSignatureExtractor();
 $certificateCollector = new OpenSslCmsCertificateCollector();
+$cmsInspector = new OpenSslCmsSignerInfoInspector();
 $urlExtractor = new X509ExtensionUrlExtractor();
 $extractedSignatures = $signatureExtractor->extract($pdfContent);
 $signatureDetails = [];
@@ -590,6 +592,7 @@ foreach ($extractedSignatures as $signature) {
 
     $signatureDetails[] = [
         'signature_index' => $signature->index,
+        'cms_info' => $cmsInspector->inspect($signature->signatureHex),
         'certificates_count' => count($certificates),
         'certificates' => $certDetails,
     ];
@@ -789,7 +792,15 @@ if (is_array($planningReport)) {
 if ($signatureDetails !== []) {
     fwrite(STDOUT, "Revocation endpoints by certificate:\n");
     foreach ($signatureDetails as $sig) {
-        fwrite(STDOUT, sprintf("  Signature #%d (%d certs)\n", $sig['signature_index'], $sig['certificates_count']));
+        $cms = is_array($sig['cms_info'] ?? null) ? $sig['cms_info'] : [];
+        fwrite(STDOUT, sprintf(
+            "  Signature #%d (%d certs) digest=%s sig_alg=%s cms_time=%s\n",
+            $sig['signature_index'],
+            $sig['certificates_count'],
+            $cms['digest_algorithm'] ?? '-',
+            $cms['signature_algorithm'] ?? '-',
+            $cms['cms_signing_time'] ?? '-',
+        ));
         foreach ($sig['certificates'] as $cert) {
             fwrite(STDOUT, sprintf(
                 "    - cert[%d] subject=%s ocsp=%s crl=%s\n",
