@@ -28,7 +28,7 @@ final class SignatureDictionaryInspectorTest extends TestCase
 endobj
 PDF;
 
-        $inspector = new SignatureDictionaryInspector();
+        $inspector = new SignatureDictionaryInspector;
         $details = $inspector->extractDetails($pdf);
 
         self::assertCount(1, $details);
@@ -54,8 +54,32 @@ PDF;
 endobj
 PDF;
 
-        $inspector = new SignatureDictionaryInspector();
+        $inspector = new SignatureDictionaryInspector;
 
         self::assertSame([], $inspector->extractDetails($pdf));
+    }
+
+    public function test_extract_details_supports_hex_encoded_strings_and_skips_invalid_boundaries(): void
+    {
+        $pdf = <<<'PDF'
+%PDF-1.4
+1 0 obj
+<<
+/Type /Sig
+/Reason <5465737420486578>
+/ByteRange [0 10 20 30]
+/Contents <4142>
+>>
+endobj
+2 0 obj
+<< /Type /Sig /ByteRange [0 10 20 30]
+PDF;
+
+        $inspector = new SignatureDictionaryInspector;
+        $details = $inspector->extractDetails($pdf);
+
+        self::assertCount(1, $details);
+        self::assertSame('Test Hex', $details[0]['reason']);
+        self::assertNull($details[0]['filter']);
     }
 }

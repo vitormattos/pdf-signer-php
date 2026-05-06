@@ -11,7 +11,7 @@ final class ByteRangeInspectorTest extends TestCase
 {
     public function test_derive_planning_uses_dictionary_observed_length_and_eof_coverage(): void
     {
-        $inspector = new ByteRangeInspector();
+        $inspector = new ByteRangeInspector;
 
         $planning = $inspector->derivePlanning([
             [
@@ -39,7 +39,7 @@ final class ByteRangeInspectorTest extends TestCase
 
     public function test_map_signatures_to_revisions_finds_matching_boundary(): void
     {
-        $inspector = new ByteRangeInspector();
+        $inspector = new ByteRangeInspector;
 
         $mapping = $inspector->mapSignaturesToRevisions([
             ['index' => 0, 'startxref' => 100, 'eof_offset' => 120, 'revision_start' => 0, 'revision_end' => 49],
@@ -58,7 +58,7 @@ final class ByteRangeInspectorTest extends TestCase
 
     public function test_check_coverage_consistency_detects_progression_and_overlap(): void
     {
-        $inspector = new ByteRangeInspector();
+        $inspector = new ByteRangeInspector;
 
         $consistent = $inspector->checkCoverageConsistency([
             ['signature_index' => 0, 'byte_range' => [0, 10, 20, 30], 'byte_range_valid' => true, 'byte_range_error' => null],
@@ -74,5 +74,48 @@ final class ByteRangeInspectorTest extends TestCase
             ['signature_index' => 1, 'byte_range' => [0, 15, 30, 30], 'byte_range_valid' => true, 'byte_range_error' => null],
         ]);
         self::assertTrue($overlap['has_overlap']);
+
+        $nonProgressive = $inspector->checkCoverageConsistency([
+            ['signature_index' => 0, 'byte_range' => [0, 10, 60, 20], 'byte_range_valid' => true, 'byte_range_error' => null],
+            ['signature_index' => 1, 'byte_range' => [0, 15, 50, 30], 'byte_range_valid' => true, 'byte_range_error' => null],
+        ]);
+        self::assertFalse($nonProgressive['coverage_progression_ok']);
+
+        $empty = $inspector->checkCoverageConsistency([]);
+        self::assertFalse($empty['applicable']);
+        self::assertNull($empty['all_start_from_zero']);
+    }
+
+    public function test_map_signatures_to_revisions_returns_unmatched_entries_when_boundary_is_missing(): void
+    {
+        $inspector = new ByteRangeInspector;
+
+        $mapping = $inspector->mapSignaturesToRevisions([
+            ['index' => 0, 'startxref' => 100, 'eof_offset' => 120, 'revision_start' => 0, 'revision_end' => 49],
+        ], [
+            ['signature_index' => 0, 'expected_second_part_offset' => 80],
+            ['signature_index' => 1],
+        ]);
+
+        self::assertCount(1, $mapping);
+        self::assertNull($mapping[0]['revision_index']);
+        self::assertFalse($mapping[0]['fits_revision_boundary']);
+
+        $planning = $inspector->derivePlanning([
+            [
+                'signature_index' => 2,
+                'byte_range' => [0, 5, 11, 9],
+                'byte_range_valid' => true,
+                'byte_range_error' => null,
+            ],
+        ], [
+            [
+                'signature_index' => 'invalid',
+                'contents_hex_length' => 2,
+            ],
+        ], 21);
+
+        self::assertNull($planning[0]['observed_contents_hex_length']);
+        self::assertNull($planning[0]['matches_observed_contents_hex_length']);
     }
 }

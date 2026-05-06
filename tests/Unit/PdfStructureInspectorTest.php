@@ -32,7 +32,7 @@ startxref
 %%EOF
 PDF;
 
-        $inspector = new PdfStructureInspector();
+        $inspector = new PdfStructureInspector;
 
         self::assertSame('1.4', $inspector->detectPdfVersion($pdf));
 
@@ -58,7 +58,7 @@ PDF;
 << /DSS << /VRI << /Key 1 0 R >> /OCSPs [1 0 R] /CRLs [2 0 R] /Certs [3 0 R] >> >>
 PDF;
 
-        $inspector = new PdfStructureInspector();
+        $inspector = new PdfStructureInspector;
 
         $appearance = $inspector->analyzeAppearance($pdf);
         self::assertTrue($appearance['has_appearance']);
@@ -77,5 +77,27 @@ PDF;
         self::assertSame(1, $ltv['ocsp_stream_hint_count']);
         self::assertSame(1, $ltv['crl_stream_hint_count']);
         self::assertSame(1, $ltv['cert_stream_hint_count']);
+    }
+
+    public function test_detectors_handle_unknown_xref_and_missing_pdf_version(): void
+    {
+        $pdf = 'plain text without pdf markers';
+
+        $inspector = new PdfStructureInspector;
+
+        self::assertNull($inspector->detectPdfVersion($pdf));
+
+        $xref = $inspector->detectXrefMode($pdf);
+        self::assertSame('unknown', $xref['mode']);
+        self::assertFalse($xref['has_xref_table']);
+        self::assertFalse($xref['has_xref_stream']);
+        self::assertNull($xref['startxref']);
+        self::assertSame([], $inspector->detectIncrementalRevisions($pdf));
+
+        $tableOnly = $inspector->detectXrefMode("xref\n0 1\nstartxref\n7\n%%EOF");
+        self::assertSame('table', $tableOnly['mode']);
+
+        $streamOnly = $inspector->detectXrefMode("<< /Type /XRef >>\nstartxref\n9\n%%EOF");
+        self::assertSame('stream', $streamOnly['mode']);
     }
 }

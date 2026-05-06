@@ -66,7 +66,7 @@ final class SignatureDictionaryInspector
 
     private function extractDictName(string $dict, string $key): ?string
     {
-        if (preg_match('/\/' . preg_quote($key, '/') . '\s*\/([^\s\/\[\]<>()\r\n]+)/', $dict, $m) === 1) {
+        if (preg_match('/\/'.preg_quote($key, '/').'\s*\/([^\s\/\[\]<>()\r\n]+)/', $dict, $m) === 1) {
             return $m[1];
         }
 
@@ -75,11 +75,11 @@ final class SignatureDictionaryInspector
 
     private function extractDictString(string $dict, string $key): ?string
     {
-        if (preg_match('/\/' . preg_quote($key, '/') . '\s*\(([^)]*)\)/', $dict, $m) === 1) {
+        if (preg_match('/\/'.preg_quote($key, '/').'\s*\(([^)]*)\)/', $dict, $m) === 1) {
             return $m[1];
         }
 
-        if (preg_match('/\/' . preg_quote($key, '/') . '\s*<([0-9A-Fa-f\s]+)>/', $dict, $m) === 1) {
+        if (preg_match('/\/'.preg_quote($key, '/').'\s*<([0-9A-Fa-f\s]+)>/', $dict, $m) === 1) {
             $hex = preg_replace('/\s+/', '', $m[1] ?? '');
             if (is_string($hex) && strlen($hex) % 2 === 0) {
                 $decoded = @hex2bin($hex);
