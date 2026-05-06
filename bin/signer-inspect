@@ -600,6 +600,70 @@ fwrite(STDOUT, "Has VRI: ".($hasVri ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has OCSPs: ".($hasOcsps ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has CRLs: ".($hasCrls ? 'yes' : 'no')."\n");
 
+$planningReport = $report['observability']['byte_range']['planning'] ?? null;
+if (is_array($planningReport)) {
+    fwrite(STDOUT, "ByteRange planning summary:\n");
+    $planningAvailable = (bool) ($planningReport['available'] ?? false);
+    fwrite(STDOUT, '  available='.(($planningAvailable) ? 'yes' : 'no')."\n");
+
+    if ($planningAvailable) {
+        $mappingBySignature = [];
+        $revisionMapping = $planningReport['revision_mapping'] ?? [];
+        if (is_array($revisionMapping)) {
+            foreach ($revisionMapping as $mappingEntry) {
+                if (is_array($mappingEntry) && isset($mappingEntry['signature_index']) && is_int($mappingEntry['signature_index'])) {
+                    $mappingBySignature[$mappingEntry['signature_index']] = $mappingEntry;
+                }
+            }
+        }
+
+        $planningEntries = $planningReport['entries'] ?? [];
+        if (is_array($planningEntries)) {
+            foreach ($planningEntries as $planningEntry) {
+                if (! is_array($planningEntry)) {
+                    continue;
+                }
+
+                $signatureIndex = is_int($planningEntry['signature_index'] ?? null) ? $planningEntry['signature_index'] : -1;
+                $offsetOk = (bool) ($planningEntry['matches_final_second_part_offset'] ?? false);
+                $lengthOk = (bool) ($planningEntry['matches_observed_contents_hex_length'] ?? false);
+                $gapOk = (bool) ($planningEntry['gap_matches_reserved_container'] ?? false);
+                $flags = [];
+                if (! $offsetOk) {
+                    $flags[] = 'offset-mismatch';
+                }
+                if (! $lengthOk) {
+                    $flags[] = 'contents-length-mismatch';
+                }
+                if (! $gapOk) {
+                    $flags[] = 'gap-mismatch';
+                }
+
+                $mapping = $mappingBySignature[$signatureIndex] ?? null;
+                $revisionIndex = is_array($mapping) && is_int($mapping['revision_index'] ?? null)
+                    ? (string) $mapping['revision_index']
+                    : 'n/a';
+                $fitsBoundary = is_array($mapping)
+                    ? ((bool) ($mapping['fits_revision_boundary'] ?? false) ? 'yes' : 'no')
+                    : 'no';
+
+                fwrite(STDOUT, sprintf(
+                    "  sig#%d rev=%s fits_boundary=%s checks=[offset:%s, contents:%s, gap:%s]%s\n",
+                    $signatureIndex,
+                    $revisionIndex,
+                    $fitsBoundary,
+                    $offsetOk ? 'ok' : 'fail',
+                    $lengthOk ? 'ok' : 'fail',
+                    $gapOk ? 'ok' : 'fail',
+                    $flags === [] ? '' : ' flags='.implode(',', $flags)
+                ));
+            }
+        }
+    } elseif (isset($planningReport['reason']) && is_string($planningReport['reason'])) {
+        fwrite(STDOUT, '  reason='.$planningReport['reason']."\n");
+    }
+}
+
 if ($signatureDetails !== []) {
     fwrite(STDOUT, "Revocation endpoints by certificate:\n");
     foreach ($signatureDetails as $sig) {
