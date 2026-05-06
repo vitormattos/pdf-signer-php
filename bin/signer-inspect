@@ -123,6 +123,31 @@ function extractSignatureDictionaryDetails(string $pdfContent): array
     $matches = [];
     preg_match_all('/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/', $pdfContent, $matches, PREG_OFFSET_CAPTURE);
 
+    $extractDictName = static function (string $dict, string $key): ?string {
+        if (preg_match('/\/' . preg_quote($key, '/') . '\s*\/([^\s\/\[\]<>()\r\n]+)/', $dict, $m) === 1) {
+            return $m[1];
+        }
+
+        return null;
+    };
+
+    $extractDictString = static function (string $dict, string $key): ?string {
+        if (preg_match('/\/' . preg_quote($key, '/') . '\s*\(([^)]*)\)/', $dict, $m) === 1) {
+            return $m[1];
+        }
+
+        if (preg_match('/\/' . preg_quote($key, '/') . '\s*<([0-9A-Fa-f\s]+)>/', $dict, $m) === 1) {
+            $hex = preg_replace('/\s+/', '', $m[1] ?? '');
+            if (is_string($hex) && strlen($hex) % 2 === 0) {
+                $decoded = @hex2bin($hex);
+
+                return is_string($decoded) ? $decoded : null;
+            }
+        }
+
+        return null;
+    };
+
     $details = [];
     foreach ($matches[0] ?? [] as $index => $fullMatch) {
         $offset = (int) $fullMatch[1];
@@ -147,6 +172,12 @@ function extractSignatureDictionaryDetails(string $pdfContent): array
 
         $details[] = [
             'signature_index' => count($details),
+            'filter' => $extractDictName($dictionary, 'Filter'),
+            'subfilter' => $extractDictName($dictionary, 'SubFilter'),
+            'signing_time' => $extractDictString($dictionary, 'M'),
+            'reason' => $extractDictString($dictionary, 'Reason'),
+            'signer_name' => $extractDictString($dictionary, 'Name'),
+            'location' => $extractDictString($dictionary, 'Location'),
             'has_filter' => preg_match('/\/Filter\b/', $dictionary) === 1,
             'has_subfilter' => preg_match('/\/SubFilter\b/', $dictionary) === 1,
             'has_reason' => preg_match('/\/Reason\b/', $dictionary) === 1,
@@ -214,12 +245,21 @@ function analyzeLtvAssembly(string $pdfContent): array
     ];
 }
 
+function detectPdfVersion(string $pdfContent): ?string
+{
+    if (preg_match('/^%PDF-(\d+\.\d+)/m', $pdfContent, $m) === 1) {
+        return $m[1];
+    }
+
+    return null;
+}
+
 /**
  * @param  array<int, array{signature_index:int,byte_range:array{0:int,1:int,2:int,3:int},byte_range_valid:bool,byte_range_error:?string}>  $byteRangeFinalVerification
  * @param  array<int, array<string, mixed>>  $signatureDictionaryDetails
  * @return array<int, array<string, mixed>>
  */
-function deriveByteRangePlanning(array $byteRangeFinalVerification, array $signatureDictionaryDetails): array
+function deriveByteRangePlanning(array $byteRangeFinalVerification, array $signatureDictionaryDetails, int $fileSize): array
 {
     $dictionaryBySignature = [];
     foreach ($signatureDictionaryDetails as $detail) {
@@ -255,6 +295,7 @@ function deriveByteRangePlanning(array $byteRangeFinalVerification, array $signa
             'matches_final_second_part_offset' => $expectedSecondPartOffset === $byteRange[2],
             'signed_span_end_offset' => $signedSpanEndOffset,
             'signed_span_length' => $signedSpanLength,
+            'covers_eof' => ($byteRange[2] + $byteRange[3]) === $fileSize,
             'gap_length' => $gapLength,
             'gap_matches_reserved_container' => $gapLength === $reservedContainerLength,
             'observed_contents_hex_length' => $observedHexLength,
@@ -303,6 +344,68 @@ function mapSignaturesToRevisions(array $revisions, array $byteRangePlanning): a
     }
 
     return $mapped;
+}
+
+/**
+ * @param  array<int, array{signature_index:int,byte_range:array{0:int,1:int,2:int,3:int},byte_range_valid:bool,byte_range_error:?string}>  $byteRangeFinalVerification
+ * @return array{applicable:bool,all_start_from_zero:bool|null,has_overlap:bool,coverage_progression_ok:bool}
+ */
+function checkByteRangeCoverageConsistency(array $byteRangeFinalVerification, int $fileSize): array
+{
+    if ($byteRangeFinalVerification === []) {
+        return [
+            'applicable' => false,
+            'all_start_from_zero' => null,
+            'has_overlap' => false,
+            'coverage_progression_ok' => true,
+        ];
+    }
+
+    $ranges = array_map(static function (array $e): array {
+        $b = $e['byte_range'];
+
+        return [
+            'sig' => $e['signature_index'],
+            'end1' => $b[0] + $b[1],
+            'start2' => $b[2],
+            'covered_end' => $b[2] + $b[3],
+            'starts_from_zero' => $b[0] === 0,
+        ];
+    }, $byteRangeFinalVerification);
+
+    usort($ranges, static fn (array $a, array $b): int => $a['covered_end'] <=> $b['covered_end']);
+
+    $allStartFromZero = array_reduce(
+        $ranges,
+        static fn (bool $carry, array $r): bool => $carry && $r['starts_from_zero'],
+        true
+    );
+
+    $hasOverlap = false;
+    $count = count($ranges);
+    for ($i = 0; $i < $count - 1; $i++) {
+        for ($j = $i + 1; $j < $count; $j++) {
+            if ($ranges[$i]['start2'] < $ranges[$j]['covered_end'] && $ranges[$j]['start2'] < $ranges[$i]['covered_end']) {
+                $hasOverlap = true;
+                break 2;
+            }
+        }
+    }
+
+    $progressionOk = true;
+    for ($i = 1; $i < $count; $i++) {
+        if ($ranges[$i]['covered_end'] <= $ranges[$i - 1]['covered_end']) {
+            $progressionOk = false;
+            break;
+        }
+    }
+
+    return [
+        'applicable' => true,
+        'all_start_from_zero' => $allStartFromZero,
+        'has_overlap' => $hasOverlap,
+        'coverage_progression_ok' => $progressionOk,
+    ];
 }
 
 function inferProfile(bool $hasSignatures, bool $hasCades, int $docTimestampCount, bool $hasDss): string
@@ -501,6 +604,7 @@ $revocationSummary['risk_flags'] = [
     'crl_unreachable' => $revocationSummary['crl_unreachable_urls'] !== [],
 ];
 
+$pdfVersion = detectPdfVersion($pdfContent);
 $xref = detectXrefMode($pdfContent);
 $revisions = detectIncrementalRevisions($pdfContent);
 $signatureDictionaryDetails = extractSignatureDictionaryDetails($pdfContent);
@@ -516,12 +620,15 @@ foreach ($extractedSignatures as $signature) {
         'byte_range_error' => $signature->byteRangeError,
     ];
 }
-$byteRangePlanning = deriveByteRangePlanning($byteRangeFinalVerification, $signatureDictionaryDetails);
+$fileSize = strlen($pdfContent);
+$byteRangePlanning = deriveByteRangePlanning($byteRangeFinalVerification, $signatureDictionaryDetails, $fileSize);
 $signatureRevisionMapping = mapSignaturesToRevisions($revisions, $byteRangePlanning);
+$byteRangeCoverageConsistency = checkByteRangeCoverageConsistency($byteRangeFinalVerification, $fileSize);
 
 $report = [
     'file' => $inputPath,
-    'size_bytes' => strlen($pdfContent),
+        'pdf_version' => $pdfVersion,
+        'size_bytes' => $fileSize,
     'signatures' => [
         'has_signatures' => $validation->hasSignatures,
         'count' => count($validation->entries),
@@ -562,6 +669,7 @@ $report = [
                     'revision_mapping' => $signatureRevisionMapping,
                 ],
             'final_verification' => $byteRangeFinalVerification,
+            'coverage_consistency' => $byteRangeCoverageConsistency,
         ],
         'signature_dictionary_assembly' => [
             'signatures_count' => count($signatureDictionaryDetails),
@@ -599,6 +707,18 @@ fwrite(STDOUT, "Has DSS: ".($hasDss ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has VRI: ".($hasVri ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has OCSPs: ".($hasOcsps ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has CRLs: ".($hasCrls ? 'yes' : 'no')."\n");
+fwrite(STDOUT, "PDF version: ".($pdfVersion ?? 'unknown')."\n");
+fwrite(STDOUT, "Xref mode: {$xref['mode']}\n");
+fwrite(STDOUT, "Revisions: ".count($revisions)."\n");
+fwrite(STDOUT, sprintf(
+    "DSS/VRI: dss=%s vri=%s vri_entries=%d ocsp_streams=%d crl_streams=%d cert_streams=%d\n",
+    $hasDss ? 'yes' : 'no',
+    $hasVri ? 'yes' : 'no',
+    $ltvAssembly['vri_entry_hint_count'],
+    $ltvAssembly['ocsp_stream_hint_count'],
+    $ltvAssembly['crl_stream_hint_count'],
+    $ltvAssembly['cert_stream_hint_count'],
+));
 
 $planningReport = $report['observability']['byte_range']['planning'] ?? null;
 if (is_array($planningReport)) {
@@ -647,11 +767,13 @@ if (is_array($planningReport)) {
                     ? ((bool) ($mapping['fits_revision_boundary'] ?? false) ? 'yes' : 'no')
                     : 'no';
 
+                $coversEof = (bool) ($planningEntry['covers_eof'] ?? false);
                 fwrite(STDOUT, sprintf(
-                    "  sig#%d rev=%s fits_boundary=%s checks=[offset:%s, contents:%s, gap:%s]%s\n",
+                    "  sig#%d rev=%s fits_boundary=%s covers_eof=%s checks=[offset:%s, contents:%s, gap:%s]%s\n",
                     $signatureIndex,
                     $revisionIndex,
                     $fitsBoundary,
+                    $coversEof ? 'yes' : 'no',
                     $offsetOk ? 'ok' : 'fail',
                     $lengthOk ? 'ok' : 'fail',
                     $gapOk ? 'ok' : 'fail',

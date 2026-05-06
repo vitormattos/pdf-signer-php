@@ -56,6 +56,13 @@ final class PdfGoldenContractTest extends TestCase
         self::assertArrayHasKey('has_dss', $report['observability']['dss_vri_assembly']);
         self::assertArrayHasKey('has_vri', $report['observability']['dss_vri_assembly']);
 
+        self::assertArrayHasKey('pdf_version', $report);
+        self::assertArrayHasKey('coverage_consistency', $report['observability']['byte_range']);
+        $consistency = $report['observability']['byte_range']['coverage_consistency'];
+        self::assertIsArray($consistency);
+        self::assertArrayHasKey('applicable', $consistency);
+        self::assertFalse((bool) ($consistency['applicable'] ?? true), 'Unsigned PDF should have no applicable consistency');
+
         $actual = [
             'has_signatures' => (bool) ($report['signatures']['has_signatures'] ?? false),
             'count' => (int) ($report['signatures']['count'] ?? 0),
@@ -137,6 +144,7 @@ final class PdfGoldenContractTest extends TestCase
             self::assertTrue((bool) ($planningEntry['matches_observed_contents_hex_length'] ?? false));
             self::assertTrue((bool) ($planningEntry['gap_matches_reserved_container'] ?? false));
             self::assertIsInt($planningEntry['signed_span_end_offset'] ?? null);
+            self::assertTrue((bool) ($planningEntry['covers_eof'] ?? false), 'Signed PDF ByteRange should cover the full file (covers_eof)');
         }
 
         foreach ($planning['revision_mapping'] as $mappingEntry) {
@@ -146,6 +154,15 @@ final class PdfGoldenContractTest extends TestCase
             self::assertIsInt($mappingEntry['revision_index'] ?? null);
             self::assertIsInt($mappingEntry['revision_end'] ?? null);
         }
+
+        self::assertArrayHasKey('pdf_version', $report);
+        self::assertNotNull($report['pdf_version'], 'pdf_version should be detectable');
+
+        $consistency = $report['observability']['byte_range']['coverage_consistency'] ?? null;
+        self::assertIsArray($consistency);
+        self::assertTrue((bool) ($consistency['applicable'] ?? false), 'Signed PDF should have applicable consistency check');
+        self::assertFalse((bool) ($consistency['has_overlap'] ?? true), 'Signed PDF should have no ByteRange overlaps');
+        self::assertTrue((bool) ($consistency['all_start_from_zero'] ?? false), 'Single-sig ByteRange should start from zero');
 
         $actual = [
             'has_signatures' => $validation->hasSignatures,
@@ -226,6 +243,13 @@ final class PdfGoldenContractTest extends TestCase
             self::assertIsInt($mappingEntry['second_part_offset'] ?? null);
             self::assertIsInt($mappingEntry['revision_index'] ?? null);
         }
+
+        $consistency = $report['observability']['byte_range']['coverage_consistency'] ?? null;
+        self::assertIsArray($consistency);
+        self::assertTrue((bool) ($consistency['applicable'] ?? false));
+        self::assertFalse((bool) ($consistency['has_overlap'] ?? true), 'Multi-signed PDF should have no ByteRange overlaps');
+        self::assertTrue((bool) ($consistency['coverage_progression_ok'] ?? false), 'Multi-signed PDF should have increasing ByteRange coverage');
+        self::assertTrue((bool) ($consistency['all_start_from_zero'] ?? false), 'All signatures ByteRange should start from zero');
     }
 
     /**
