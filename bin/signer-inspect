@@ -214,6 +214,50 @@ function analyzeLtvAssembly(string $pdfContent): array
     ];
 }
 
+/**
+ * @param  array<int, array{signature_index:int,byte_range:array{0:int,1:int,2:int,3:int},byte_range_valid:bool,byte_range_error:?string}>  $byteRangeFinalVerification
+ * @param  array<int, array<string, mixed>>  $signatureDictionaryDetails
+ * @return array<int, array<string, mixed>>
+ */
+function deriveByteRangePlanning(array $byteRangeFinalVerification, array $signatureDictionaryDetails): array
+{
+    $dictionaryBySignature = [];
+    foreach ($signatureDictionaryDetails as $detail) {
+        if (! isset($detail['signature_index']) || ! is_int($detail['signature_index'])) {
+            continue;
+        }
+        $dictionaryBySignature[$detail['signature_index']] = $detail;
+    }
+
+    $planning = [];
+    foreach ($byteRangeFinalVerification as $entry) {
+        $signatureIndex = $entry['signature_index'];
+        $byteRange = $entry['byte_range'];
+
+        $reservedContainerLength = $byteRange[2] - $byteRange[1];
+        $plannedContentsHexLength = max(0, $reservedContainerLength - 2);
+        $expectedSecondPartOffset = $byteRange[1] + $plannedContentsHexLength + 2;
+
+        $dictionaryDetails = $dictionaryBySignature[$signatureIndex] ?? null;
+        $observedHexLength = null;
+        if (is_array($dictionaryDetails) && isset($dictionaryDetails['contents_hex_length']) && is_int($dictionaryDetails['contents_hex_length'])) {
+            $observedHexLength = $dictionaryDetails['contents_hex_length'];
+        }
+
+        $planning[] = [
+            'signature_index' => $signatureIndex,
+            'planned_contents_hex_length' => $plannedContentsHexLength,
+            'reserved_container_length' => $reservedContainerLength,
+            'expected_second_part_offset' => $expectedSecondPartOffset,
+            'matches_final_second_part_offset' => $expectedSecondPartOffset === $byteRange[2],
+            'observed_contents_hex_length' => $observedHexLength,
+            'matches_observed_contents_hex_length' => $observedHexLength === null ? null : $observedHexLength === $plannedContentsHexLength,
+        ];
+    }
+
+    return $planning;
+}
+
 function inferProfile(bool $hasSignatures, bool $hasCades, int $docTimestampCount, bool $hasDss): string
 {
     if (! $hasSignatures) {
@@ -424,6 +468,7 @@ foreach ($signatureExtractor->extract($pdfContent) as $signature) {
         'byte_range_error' => $signature->byteRangeError,
     ];
 }
+$byteRangePlanning = deriveByteRangePlanning($byteRangeFinalVerification, $signatureDictionaryDetails);
 
 $report = [
     'file' => $inputPath,
@@ -453,10 +498,18 @@ $report = [
             'boundaries' => $revisions,
         ],
         'byte_range' => [
-            'planning' => [
-                'available' => false,
-                'reason' => 'Planning data requires signing context instrumentation.',
-            ],
+            'planning' => $byteRangePlanning === []
+                ? [
+                    'available' => false,
+                    'reason' => 'No signatures found in the inspected PDF.',
+                    'source' => 'derived-from-final-pdf',
+                    'entries' => [],
+                ]
+                : [
+                    'available' => true,
+                    'source' => 'derived-from-final-pdf',
+                    'entries' => $byteRangePlanning,
+                ],
             'final_verification' => $byteRangeFinalVerification,
         ],
         'signature_dictionary_assembly' => [
