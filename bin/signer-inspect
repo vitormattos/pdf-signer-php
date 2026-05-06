@@ -414,6 +414,7 @@ $docTimestampCount = max((int) $docTimestampTypeCount, (int) $docTimestampSubFil
 $signatureExtractor = new PdfSignatureExtractor();
 $certificateCollector = new OpenSslCmsCertificateCollector();
 $urlExtractor = new X509ExtensionUrlExtractor();
+$extractedSignatures = $signatureExtractor->extract($pdfContent);
 $signatureDetails = [];
 $revocationSummary = [
     'certificates_analyzed' => 0,
@@ -423,7 +424,7 @@ $revocationSummary = [
     'crl_unreachable_urls' => [],
 ];
 
-foreach ($signatureExtractor->extract($pdfContent) as $signature) {
+foreach ($extractedSignatures as $signature) {
     $certificates = $certificateCollector->collectDerCertificates($signature->signatureHex);
     $certDetails = [];
 
@@ -507,7 +508,7 @@ $appearance = analyzeAppearance($pdfContent);
 $ltvAssembly = analyzeLtvAssembly($pdfContent);
 
 $byteRangeFinalVerification = [];
-foreach ($signatureExtractor->extract($pdfContent) as $signature) {
+foreach ($extractedSignatures as $signature) {
     $byteRangeFinalVerification[] = [
         'signature_index' => $signature->index,
         'byte_range' => $signature->byteRange,
