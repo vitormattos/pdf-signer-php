@@ -121,16 +121,29 @@ final class PdfGoldenContractTest extends TestCase
         self::assertArrayHasKey('entries', $planning);
         self::assertIsArray($planning['entries']);
         self::assertNotEmpty($planning['entries']);
+        self::assertArrayHasKey('revision_mapping', $planning);
+        self::assertIsArray($planning['revision_mapping']);
+        self::assertNotEmpty($planning['revision_mapping']);
 
         $finalVerification = $report['observability']['byte_range']['final_verification'] ?? null;
         self::assertIsArray($finalVerification);
         self::assertNotEmpty($finalVerification);
         self::assertCount(count($finalVerification), $planning['entries']);
+        self::assertCount(count($planning['entries']), $planning['revision_mapping']);
 
         foreach ($planning['entries'] as $planningEntry) {
             self::assertIsArray($planningEntry);
             self::assertTrue((bool) ($planningEntry['matches_final_second_part_offset'] ?? false));
             self::assertTrue((bool) ($planningEntry['matches_observed_contents_hex_length'] ?? false));
+            self::assertTrue((bool) ($planningEntry['gap_matches_reserved_container'] ?? false));
+            self::assertIsInt($planningEntry['signed_span_end_offset'] ?? null);
+        }
+
+        foreach ($planning['revision_mapping'] as $mappingEntry) {
+            self::assertIsArray($mappingEntry);
+            self::assertTrue((bool) ($mappingEntry['fits_revision_boundary'] ?? false));
+            self::assertIsInt($mappingEntry['revision_index'] ?? null);
+            self::assertIsInt($mappingEntry['revision_end'] ?? null);
         }
 
         $actual = [
@@ -142,6 +155,74 @@ final class PdfGoldenContractTest extends TestCase
         ];
 
         self::assertSame($this->loadGolden('pdf_signed_contract.json'), $actual);
+    }
+
+    public function test_multi_signed_pdf_exposes_planning_for_each_signature(): void
+    {
+        if (! function_exists('openssl_pkcs12_read')) {
+            self::markTestSkipped('OpenSSL extension is required.');
+        }
+
+        $inputPath = __DIR__.'/../../exemplos/pdfs/Untitled.pdf';
+        $certPath = __DIR__.'/../../exemplos/cert.pfx';
+        self::assertFileExists($inputPath);
+        self::assertFileExists($certPath);
+
+        $input = file_get_contents($inputPath);
+        self::assertIsString($input);
+
+        $firstSigned = Signer::signer()
+            ->withPdfContent($input)
+            ->withCertificatePath($certPath, '1234**')
+            ->withMetadata(new SignatureMetadataDto(
+                reason: 'E2E First Signature',
+                actor: new SignatureActorDto(name: 'SignerPHP Tests')
+            ))
+            ->sign();
+
+        $secondSigned = Signer::signer()
+            ->withPdfContent($firstSigned)
+            ->withCertificatePath($certPath, '1234**')
+            ->withMetadata(new SignatureMetadataDto(
+                reason: 'E2E Second Signature',
+                actor: new SignatureActorDto(name: 'SignerPHP Tests')
+            ))
+            ->sign();
+
+        $signedTempPath = tempnam(sys_get_temp_dir(), 'signerphp-e2e-multisigned-');
+        self::assertIsString($signedTempPath);
+        self::assertNotSame('', $signedTempPath);
+        file_put_contents($signedTempPath, $secondSigned);
+
+        $reportJson = $this->runCommand([
+            PHP_BINARY,
+            __DIR__.'/../../bin/signer-inspect',
+            '--input='.$signedTempPath,
+            '--json',
+        ], $inspectExitCode);
+        @unlink($signedTempPath);
+        self::assertSame(0, $inspectExitCode, 'signer-inspect must run successfully for multi-signed PDF');
+
+        $report = json_decode($reportJson, true);
+        self::assertIsArray($report);
+        self::assertArrayHasKey('signatures', $report);
+        self::assertGreaterThanOrEqual(2, (int) ($report['signatures']['count'] ?? 0));
+
+        self::assertArrayHasKey('observability', $report);
+        self::assertArrayHasKey('incremental_revisions', $report['observability']);
+        self::assertGreaterThanOrEqual(2, (int) ($report['observability']['incremental_revisions']['count'] ?? 0));
+
+        $planning = $report['observability']['byte_range']['planning'] ?? null;
+        self::assertIsArray($planning);
+        self::assertTrue((bool) ($planning['available'] ?? false));
+        self::assertIsArray($planning['entries'] ?? null);
+        self::assertGreaterThanOrEqual(2, count($planning['entries']));
+        self::assertIsArray($planning['revision_mapping'] ?? null);
+        self::assertGreaterThanOrEqual(2, count($planning['revision_mapping']));
+
+        foreach ($planning['revision_mapping'] as $mappingEntry) {
+            self::assertTrue((bool) ($mappingEntry['fits_revision_boundary'] ?? false));
+        }
     }
 
     /**
