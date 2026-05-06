@@ -93,6 +93,46 @@ final class PdfGoldenContractTest extends TestCase
             ->withPdfContent($signed)
             ->validate();
 
+        $signedTempPath = tempnam(sys_get_temp_dir(), 'signerphp-e2e-signed-');
+        self::assertIsString($signedTempPath);
+        self::assertNotSame('', $signedTempPath);
+        file_put_contents($signedTempPath, $signed);
+
+        $reportJson = $this->runCommand([
+            PHP_BINARY,
+            __DIR__.'/../../bin/signer-inspect',
+            '--input='.$signedTempPath,
+            '--json',
+        ], $inspectExitCode);
+        @unlink($signedTempPath);
+        self::assertSame(0, $inspectExitCode, 'signer-inspect must run successfully for signed PDF');
+
+        $report = json_decode($reportJson, true);
+        self::assertIsArray($report);
+        self::assertArrayHasKey('observability', $report);
+        self::assertIsArray($report['observability']);
+        self::assertArrayHasKey('byte_range', $report['observability']);
+        self::assertIsArray($report['observability']['byte_range']);
+
+        $planning = $report['observability']['byte_range']['planning'] ?? null;
+        self::assertIsArray($planning);
+        self::assertTrue((bool) ($planning['available'] ?? false), 'ByteRange planning should be available for signed PDF');
+        self::assertSame('derived-from-final-pdf', $planning['source'] ?? null);
+        self::assertArrayHasKey('entries', $planning);
+        self::assertIsArray($planning['entries']);
+        self::assertNotEmpty($planning['entries']);
+
+        $finalVerification = $report['observability']['byte_range']['final_verification'] ?? null;
+        self::assertIsArray($finalVerification);
+        self::assertNotEmpty($finalVerification);
+        self::assertCount(count($finalVerification), $planning['entries']);
+
+        foreach ($planning['entries'] as $planningEntry) {
+            self::assertIsArray($planningEntry);
+            self::assertTrue((bool) ($planningEntry['matches_final_second_part_offset'] ?? false));
+            self::assertTrue((bool) ($planningEntry['matches_observed_contents_hex_length'] ?? false));
+        }
+
         $actual = [
             'has_signatures' => $validation->hasSignatures,
             'count' => count($validation->entries),
