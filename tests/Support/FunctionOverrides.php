@@ -49,6 +49,25 @@ function is_file(string $filename): bool
     return \is_file($filename);
 }
 
+namespace SignerPHP\Infrastructure\Native\Service\Inspect;
+
+use SignerPHP\Infrastructure\Native\Service\NativeFunctionOverrideState;
+
+function tempnam(string $directory, string $prefix): string|false
+{
+    if (NativeFunctionOverrideState::$forceTempnamFailure) {
+        return false;
+    }
+
+    foreach (NativeFunctionOverrideState::$failTempnamPrefixes as $forcedPrefix) {
+        if ($forcedPrefix !== '' && str_starts_with($prefix, $forcedPrefix)) {
+            return false;
+        }
+    }
+
+    return \tempnam($directory, $prefix);
+}
+
 namespace SignerPHP\Infrastructure\Legacy;
 
 final class LegacyFunctionOverrideState
