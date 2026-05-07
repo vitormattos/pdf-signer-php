@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SignerPHP\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use SignerPHP\Infrastructure\Native\Service\PdfStructureInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\PdfStructureInspector;
 
 final class PdfStructureInspectorTest extends TestCase
 {

@@ -7,7 +7,7 @@ namespace SignerPHP\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use SignerPHP\Infrastructure\Native\Contract\ProcessRunnerInterface;
 use SignerPHP\Infrastructure\Native\Service\NativeFunctionOverrideState;
-use SignerPHP\Infrastructure\Native\Service\OpenSslCmsSignerInfoInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\OpenSslCmsSignerInfoInspector;
 use SignerPHP\Infrastructure\Native\ValueObject\ProcessResult;
 
 final class OpenSslCmsSignerInfoInspectorTest extends TestCase

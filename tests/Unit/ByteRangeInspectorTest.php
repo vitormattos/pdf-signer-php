@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SignerPHP\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use SignerPHP\Infrastructure\Native\Service\ByteRangeInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\ByteRangeInspector;
 
 final class ByteRangeInspectorTest extends TestCase
 {

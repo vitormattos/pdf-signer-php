@@ -3,12 +3,12 @@
 
 declare(strict_types=1);
 
-use SignerPHP\Infrastructure\Native\Service\ByteRangeInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\ByteRangeInspector;
 use SignerPHP\Infrastructure\Native\Service\OpenSslCmsCertificateCollector;
-use SignerPHP\Infrastructure\Native\Service\OpenSslCmsSignerInfoInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\OpenSslCmsSignerInfoInspector;
 use SignerPHP\Infrastructure\Native\Service\PdfSignatureExtractor;
-use SignerPHP\Infrastructure\Native\Service\PdfStructureInspector;
-use SignerPHP\Infrastructure\Native\Service\SignatureDictionaryInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\PdfStructureInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\SignatureDictionaryInspector;
 use SignerPHP\Infrastructure\Native\Service\X509ExtensionUrlExtractor;
 use SignerPHP\Presentation\Signer;
 
