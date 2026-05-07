@@ -112,12 +112,7 @@ jobs:
         run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Run inspect and visible-signature contract tests
-        run: >-
-          vendor/bin/phpunit
-          tests/E2E/PdfGoldenContractTest.php
-          tests/E2E/VisibleAppearanceE2ETest.php
-          tests/E2E/VisibleSignatureScenariosE2ETest.php
-          tests/E2E/ImageIntegrityE2ETest.php
+        run: vendor/bin/pest --testsuite signing-contracts
 
   mutation:
     name: Mutation Tests (Infection)
