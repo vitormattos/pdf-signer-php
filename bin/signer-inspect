@@ -3,10 +3,14 @@
 
 declare(strict_types=1);
 
-use SignerPHP\Presentation\Signer;
+use SignerPHP\Infrastructure\Native\Service\Inspect\ByteRangeInspector;
 use SignerPHP\Infrastructure\Native\Service\OpenSslCmsCertificateCollector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\OpenSslCmsSignerInfoInspector;
 use SignerPHP\Infrastructure\Native\Service\PdfSignatureExtractor;
+use SignerPHP\Infrastructure\Native\Service\Inspect\PdfStructureInspector;
+use SignerPHP\Infrastructure\Native\Service\Inspect\SignatureDictionaryInspector;
 use SignerPHP\Infrastructure\Native\Service\X509ExtensionUrlExtractor;
+use SignerPHP\Presentation\Signer;
 
 require __DIR__.'/../vendor/autoload.php';
 
@@ -49,169 +53,6 @@ function fail(string $message, int $code = 1): never
 function hasPattern(string $content, string $pattern): bool
 {
     return preg_match($pattern, $content) === 1;
-}
-
-/**
- * @return array{mode:string,has_xref_table:bool,has_xref_stream:bool,startxref:int|null}
- */
-function detectXrefMode(string $pdfContent): array
-{
-    $hasXrefTable = preg_match('/(?:^|\R)xref\R/s', $pdfContent) === 1;
-    $hasXrefStream = preg_match('/\/Type\s*\/XRef\b/', $pdfContent) === 1;
-
-    $mode = 'unknown';
-    if ($hasXrefTable && $hasXrefStream) {
-        $mode = 'hybrid';
-    } elseif ($hasXrefStream) {
-        $mode = 'stream';
-    } elseif ($hasXrefTable) {
-        $mode = 'table';
-    }
-
-    $startxref = null;
-    if (preg_match_all('/startxref\s*([0-9]+)\s*%%EOF/ms', $pdfContent, $matches) > 0) {
-        $last = $matches[1][count($matches[1]) - 1] ?? null;
-        if (is_string($last) && $last !== '') {
-            $startxref = (int) $last;
-        }
-    }
-
-    return [
-        'mode' => $mode,
-        'has_xref_table' => $hasXrefTable,
-        'has_xref_stream' => $hasXrefStream,
-        'startxref' => $startxref,
-    ];
-}
-
-/**
- * @return array<int, array{index:int,startxref:int,eof_offset:int,revision_start:int,revision_end:int}>
- */
-function detectIncrementalRevisions(string $pdfContent): array
-{
-    $matches = [];
-    preg_match_all('/startxref\s*([0-9]+)\s*%%EOF/ms', $pdfContent, $matches, PREG_OFFSET_CAPTURE);
-
-    $revisions = [];
-    $previousEnd = -1;
-    foreach ($matches[0] ?? [] as $index => $match) {
-        $full = $match[0];
-        $offset = (int) $match[1];
-        $eofEnd = $offset + strlen($full) - 1;
-        $startxref = isset($matches[1][$index][0]) ? (int) $matches[1][$index][0] : 0;
-
-        $revisionStart = $previousEnd + 1;
-        $revisions[] = [
-            'index' => $index,
-            'startxref' => $startxref,
-            'eof_offset' => $offset,
-            'revision_start' => max(0, $revisionStart),
-            'revision_end' => max(0, $eofEnd),
-        ];
-
-        $previousEnd = $eofEnd;
-    }
-
-    return $revisions;
-}
-
-/**
- * @return array<int, array<string, mixed>>
- */
-function extractSignatureDictionaryDetails(string $pdfContent): array
-{
-    $matches = [];
-    preg_match_all('/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/', $pdfContent, $matches, PREG_OFFSET_CAPTURE);
-
-    $details = [];
-    foreach ($matches[0] ?? [] as $index => $fullMatch) {
-        $offset = (int) $fullMatch[1];
-        $start = strrpos(substr($pdfContent, 0, $offset), '<<');
-        $end = strpos($pdfContent, '>>', $offset);
-        if ($start === false || $end === false || $end <= $start) {
-            continue;
-        }
-
-        $dictionary = substr($pdfContent, $start, $end - $start + 2);
-        if (! is_string($dictionary) || ! preg_match('/\/Type\s*\/Sig\b/', $dictionary)) {
-            continue;
-        }
-
-        $contentsHexLength = null;
-        if (preg_match('/\/Contents\s*<([0-9A-Fa-f\s]+)>/s', $dictionary, $contentMatch) === 1) {
-            $hex = preg_replace('/\s+/', '', $contentMatch[1] ?? '');
-            if (is_string($hex)) {
-                $contentsHexLength = strlen($hex);
-            }
-        }
-
-        $details[] = [
-            'signature_index' => count($details),
-            'has_filter' => preg_match('/\/Filter\b/', $dictionary) === 1,
-            'has_subfilter' => preg_match('/\/SubFilter\b/', $dictionary) === 1,
-            'has_reason' => preg_match('/\/Reason\b/', $dictionary) === 1,
-            'has_name' => preg_match('/\/Name\b/', $dictionary) === 1,
-            'has_m' => preg_match('/\/M\b/', $dictionary) === 1,
-            'has_location' => preg_match('/\/Location\b/', $dictionary) === 1,
-            'has_contact_info' => preg_match('/\/ContactInfo\b/', $dictionary) === 1,
-            'has_reference' => preg_match('/\/Reference\b/', $dictionary) === 1,
-            'has_contents' => preg_match('/\/Contents\b/', $dictionary) === 1,
-            'contents_hex_length' => $contentsHexLength,
-            'dictionary_span' => [
-                'start_offset' => $start,
-                'end_offset' => $end + 1,
-            ],
-        ];
-    }
-
-    return $details;
-}
-
-/**
- * @return array{has_appearance:bool,widget_count:int,ap_n_count:int,xobject_count:int,trace:array<int, string>}
- */
-function analyzeAppearance(string $pdfContent): array
-{
-    $widgetCount = (int) preg_match_all('/\/Subtype\s*\/Widget\b/', $pdfContent, $unused);
-    $apNCount = (int) preg_match_all('/\/AP\s*<<[^>]*\/N\b/s', $pdfContent, $unused2);
-    $xObjectCount = (int) preg_match_all('/\/Type\s*\/XObject\b/', $pdfContent, $unused3);
-
-    $trace = [];
-    if ($widgetCount > 0) {
-        $trace[] = 'widget-annotations-detected';
-    }
-    if ($apNCount > 0) {
-        $trace[] = 'appearance-normal-stream-detected';
-    }
-    if ($xObjectCount > 0) {
-        $trace[] = 'xobject-resources-detected';
-    }
-
-    return [
-        'has_appearance' => $widgetCount > 0 || $apNCount > 0,
-        'widget_count' => $widgetCount,
-        'ap_n_count' => $apNCount,
-        'xobject_count' => $xObjectCount,
-        'trace' => $trace,
-    ];
-}
-
-/**
- * @return array{has_dss:bool,has_vri:bool,has_ocsps:bool,has_crls:bool,has_certs:bool,vri_entry_hint_count:int,ocsp_stream_hint_count:int,crl_stream_hint_count:int,cert_stream_hint_count:int}
- */
-function analyzeLtvAssembly(string $pdfContent): array
-{
-    return [
-        'has_dss' => preg_match('/\/DSS\b/', $pdfContent) === 1,
-        'has_vri' => preg_match('/\/VRI\b/', $pdfContent) === 1,
-        'has_ocsps' => preg_match('/\/OCSPs\b/', $pdfContent) === 1,
-        'has_crls' => preg_match('/\/CRLs\b/', $pdfContent) === 1,
-        'has_certs' => preg_match('/\/Certs\b/', $pdfContent) === 1,
-        'vri_entry_hint_count' => (int) preg_match_all('/\/VRI\b/', $pdfContent, $unused),
-        'ocsp_stream_hint_count' => (int) preg_match_all('/\/OCSPs\b/', $pdfContent, $unused2),
-        'crl_stream_hint_count' => (int) preg_match_all('/\/CRLs\b/', $pdfContent, $unused3),
-        'cert_stream_hint_count' => (int) preg_match_all('/\/Certs\b/', $pdfContent, $unused4),
-    ];
 }
 
 function inferProfile(bool $hasSignatures, bool $hasCades, int $docTimestampCount, bool $hasDss): string
@@ -262,7 +103,6 @@ function isUrlReachable(string $url, int $timeoutSeconds = 4): bool
     $errno = curl_errno($ch);
     $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 
-    // Some endpoints reject HEAD. Retry with GET.
     if ($errno === 0 && ($status === 405 || $status === 400 || $status === 403)) {
         curl_setopt_array($ch, [
             CURLOPT_NOBODY => false,
@@ -322,7 +162,13 @@ $docTimestampCount = max((int) $docTimestampTypeCount, (int) $docTimestampSubFil
 
 $signatureExtractor = new PdfSignatureExtractor();
 $certificateCollector = new OpenSslCmsCertificateCollector();
+$cmsInspector = new OpenSslCmsSignerInfoInspector();
+$structureInspector = new PdfStructureInspector();
+$dictionaryInspector = new SignatureDictionaryInspector();
+$byteRangeInspector = new ByteRangeInspector();
 $urlExtractor = new X509ExtensionUrlExtractor();
+
+$extractedSignatures = $signatureExtractor->extract($pdfContent);
 $signatureDetails = [];
 $revocationSummary = [
     'certificates_analyzed' => 0,
@@ -332,7 +178,7 @@ $revocationSummary = [
     'crl_unreachable_urls' => [],
 ];
 
-foreach ($signatureExtractor->extract($pdfContent) as $signature) {
+foreach ($extractedSignatures as $signature) {
     $certificates = $certificateCollector->collectDerCertificates($signature->signatureHex);
     $certDetails = [];
 
@@ -395,6 +241,7 @@ foreach ($signatureExtractor->extract($pdfContent) as $signature) {
 
     $signatureDetails[] = [
         'signature_index' => $signature->index,
+        'cms_info' => $cmsInspector->inspect($signature->signatureHex),
         'certificates_count' => count($certificates),
         'certificates' => $certDetails,
     ];
@@ -409,14 +256,15 @@ $revocationSummary['risk_flags'] = [
     'crl_unreachable' => $revocationSummary['crl_unreachable_urls'] !== [],
 ];
 
-$xref = detectXrefMode($pdfContent);
-$revisions = detectIncrementalRevisions($pdfContent);
-$signatureDictionaryDetails = extractSignatureDictionaryDetails($pdfContent);
-$appearance = analyzeAppearance($pdfContent);
-$ltvAssembly = analyzeLtvAssembly($pdfContent);
+$pdfVersion = $structureInspector->detectPdfVersion($pdfContent);
+$xref = $structureInspector->detectXrefMode($pdfContent);
+$revisions = $structureInspector->detectIncrementalRevisions($pdfContent);
+$signatureDictionaryDetails = $dictionaryInspector->extractDetails($pdfContent);
+$appearance = $structureInspector->analyzeAppearance($pdfContent);
+$ltvAssembly = $structureInspector->analyzeLtvAssembly($pdfContent);
 
 $byteRangeFinalVerification = [];
-foreach ($signatureExtractor->extract($pdfContent) as $signature) {
+foreach ($extractedSignatures as $signature) {
     $byteRangeFinalVerification[] = [
         'signature_index' => $signature->index,
         'byte_range' => $signature->byteRange,
@@ -425,9 +273,15 @@ foreach ($signatureExtractor->extract($pdfContent) as $signature) {
     ];
 }
 
+$fileSize = strlen($pdfContent);
+$byteRangePlanning = $byteRangeInspector->derivePlanning($byteRangeFinalVerification, $signatureDictionaryDetails, $fileSize);
+$signatureRevisionMapping = $byteRangeInspector->mapSignaturesToRevisions($revisions, $byteRangePlanning);
+$byteRangeCoverageConsistency = $byteRangeInspector->checkCoverageConsistency($byteRangeFinalVerification);
+
 $report = [
     'file' => $inputPath,
-    'size_bytes' => strlen($pdfContent),
+    'pdf_version' => $pdfVersion,
+    'size_bytes' => $fileSize,
     'signatures' => [
         'has_signatures' => $validation->hasSignatures,
         'count' => count($validation->entries),
@@ -453,11 +307,22 @@ $report = [
             'boundaries' => $revisions,
         ],
         'byte_range' => [
-            'planning' => [
-                'available' => false,
-                'reason' => 'Planning data requires signing context instrumentation.',
-            ],
+            'planning' => $byteRangePlanning === []
+                ? [
+                    'available' => false,
+                    'reason' => 'No signatures found in the inspected PDF.',
+                    'source' => 'derived-from-final-pdf',
+                    'entries' => [],
+                    'revision_mapping' => [],
+                ]
+                : [
+                    'available' => true,
+                    'source' => 'derived-from-final-pdf',
+                    'entries' => $byteRangePlanning,
+                    'revision_mapping' => $signatureRevisionMapping,
+                ],
             'final_verification' => $byteRangeFinalVerification,
+            'coverage_consistency' => $byteRangeCoverageConsistency,
         ],
         'signature_dictionary_assembly' => [
             'signatures_count' => count($signatureDictionaryDetails),
@@ -472,7 +337,7 @@ $report = [
         hasSignatures: $validation->hasSignatures,
         hasCades: $hasCades,
         docTimestampCount: (int) $docTimestampCount,
-        hasDss: $hasDss
+        hasDss: $hasDss,
     ),
 ];
 
@@ -495,11 +360,97 @@ fwrite(STDOUT, "Has DSS: ".($hasDss ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has VRI: ".($hasVri ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has OCSPs: ".($hasOcsps ? 'yes' : 'no')."\n");
 fwrite(STDOUT, "Has CRLs: ".($hasCrls ? 'yes' : 'no')."\n");
+fwrite(STDOUT, "PDF version: ".($pdfVersion ?? 'unknown')."\n");
+fwrite(STDOUT, "Xref mode: {$xref['mode']}\n");
+fwrite(STDOUT, "Revisions: ".count($revisions)."\n");
+fwrite(STDOUT, sprintf(
+    "DSS/VRI: dss=%s vri=%s vri_entries=%d ocsp_streams=%d crl_streams=%d cert_streams=%d\n",
+    $hasDss ? 'yes' : 'no',
+    $hasVri ? 'yes' : 'no',
+    $ltvAssembly['vri_entry_hint_count'],
+    $ltvAssembly['ocsp_stream_hint_count'],
+    $ltvAssembly['crl_stream_hint_count'],
+    $ltvAssembly['cert_stream_hint_count'],
+));
+
+$planningReport = $report['observability']['byte_range']['planning'] ?? null;
+if (is_array($planningReport)) {
+    fwrite(STDOUT, "ByteRange planning summary:\n");
+    $planningAvailable = (bool) ($planningReport['available'] ?? false);
+    fwrite(STDOUT, '  available='.(($planningAvailable) ? 'yes' : 'no')."\n");
+
+    if ($planningAvailable) {
+        $mappingBySignature = [];
+        $revisionMapping = $planningReport['revision_mapping'] ?? [];
+        if (is_array($revisionMapping)) {
+            foreach ($revisionMapping as $mappingEntry) {
+                if (is_array($mappingEntry) && isset($mappingEntry['signature_index']) && is_int($mappingEntry['signature_index'])) {
+                    $mappingBySignature[$mappingEntry['signature_index']] = $mappingEntry;
+                }
+            }
+        }
+
+        $planningEntries = $planningReport['entries'] ?? [];
+        if (is_array($planningEntries)) {
+            foreach ($planningEntries as $planningEntry) {
+                if (! is_array($planningEntry)) {
+                    continue;
+                }
+
+                $signatureIndex = is_int($planningEntry['signature_index'] ?? null) ? $planningEntry['signature_index'] : -1;
+                $offsetOk = (bool) ($planningEntry['matches_final_second_part_offset'] ?? false);
+                $lengthOk = (bool) ($planningEntry['matches_observed_contents_hex_length'] ?? false);
+                $gapOk = (bool) ($planningEntry['gap_matches_reserved_container'] ?? false);
+                $flags = [];
+                if (! $offsetOk) {
+                    $flags[] = 'offset-mismatch';
+                }
+                if (! $lengthOk) {
+                    $flags[] = 'contents-length-mismatch';
+                }
+                if (! $gapOk) {
+                    $flags[] = 'gap-mismatch';
+                }
+
+                $mapping = $mappingBySignature[$signatureIndex] ?? null;
+                $revisionIndex = is_array($mapping) && is_int($mapping['revision_index'] ?? null)
+                    ? (string) $mapping['revision_index']
+                    : 'n/a';
+                $fitsBoundary = is_array($mapping)
+                    ? ((bool) ($mapping['fits_revision_boundary'] ?? false) ? 'yes' : 'no')
+                    : 'no';
+
+                $coversEof = (bool) ($planningEntry['covers_eof'] ?? false);
+                fwrite(STDOUT, sprintf(
+                    "  sig#%d rev=%s fits_boundary=%s covers_eof=%s checks=[offset:%s, contents:%s, gap:%s]%s\n",
+                    $signatureIndex,
+                    $revisionIndex,
+                    $fitsBoundary,
+                    $coversEof ? 'yes' : 'no',
+                    $offsetOk ? 'ok' : 'fail',
+                    $lengthOk ? 'ok' : 'fail',
+                    $gapOk ? 'ok' : 'fail',
+                    $flags === [] ? '' : ' flags='.implode(',', $flags),
+                ));
+            }
+        }
+    } elseif (isset($planningReport['reason']) && is_string($planningReport['reason'])) {
+        fwrite(STDOUT, '  reason='.$planningReport['reason']."\n");
+    }
+}
 
 if ($signatureDetails !== []) {
     fwrite(STDOUT, "Revocation endpoints by certificate:\n");
     foreach ($signatureDetails as $sig) {
-        fwrite(STDOUT, sprintf("  Signature #%d (%d certs)\n", $sig['signature_index'], $sig['certificates_count']));
+        $cms = is_array($sig['cms_info'] ?? null) ? $sig['cms_info'] : [];
+        fwrite(STDOUT, sprintf(
+            "  Signature #%d (%d certs) digest=%s sig_alg=%s cms_time=%s\n",
+            $sig['signature_index'],
+            $sig['certificates_count'],
+            $cms['digest_algorithm'] ?? '-',
+            $cms['signature_algorithm'] ?? '-',
+            $cms['cms_signing_time'] ?? '-',
+        ));
         foreach ($sig['certificates'] as $cert) {
             fwrite(STDOUT, sprintf(
                 "    - cert[%d] subject=%s ocsp=%s crl=%s\n",
