@@ -38,14 +38,15 @@ final class TrailerObjectResolverTest extends TestCase
         (new TrailerObjectResolver)->resolveRootObject($document);
     }
 
-    public function test_resolve_info_object_returns_null_when_target_object_is_missing(): void
+    public function test_resolve_info_object_throws_when_target_object_is_missing(): void
     {
         $document = new PdfDocument;
         $document->setTrailerObject(new PDFValueObject(['Info' => new PDFValueReference(10)]));
 
-        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+        $this->expectException(PdfCoreStructureException::class);
+        $this->expectExceptionMessage('Invalid info object');
 
-        self::assertNull($resolved);
+        (new TrailerObjectResolver)->resolveInfoObject($document);
     }
 
     public function test_resolve_info_object_returns_null_when_reference_is_missing(): void
@@ -71,19 +72,15 @@ final class TrailerObjectResolverTest extends TestCase
         self::assertSame($info, $resolved);
     }
 
-    public function test_resolve_info_object_returns_null_when_document_throws_structure_exception(): void
+    public function test_resolve_info_object_throws_when_reference_is_invalid(): void
     {
-        $document = new class extends PdfDocument
-        {
-            public function getTrailerObject(): PDFValueObject
-            {
-                throw new PdfCoreStructureException('forced for coverage');
-            }
-        };
+        $document = new PdfDocument;
+        $document->setTrailerObject(new PDFValueObject(['Info' => 'invalid']));
 
-        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+        $this->expectException(PdfCoreStructureException::class);
+        $this->expectExceptionMessage('Could not find the info object from the trailer');
 
-        self::assertNull($resolved);
+        (new TrailerObjectResolver)->resolveInfoObject($document);
     }
 
     public function test_resolve_root_object_throws_when_target_object_is_missing(): void

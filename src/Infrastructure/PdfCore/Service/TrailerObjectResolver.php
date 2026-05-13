@@ -22,27 +22,22 @@ final class TrailerObjectResolver
     }
 
     /**
-     * Resolve Info object, returning null if not present or invalid.
+     * Resolve Info object, returning null only when Info is absent.
      * Info is optional in PDF spec; many valid PDFs don't have it.
      */
     public function resolveInfoObject(PdfDocument $document): ?PDFObject
     {
-        try {
-            $infoObjectId = $this->resolveOptionalReference($document, 'Info');
-            if ($infoObjectId === null) {
-                return null;
-            }
-
-            $infoObject = $document->getObject($infoObjectId);
-            if ($infoObject === null) {
-                return null;
-            }
-
-            return $infoObject;
-        } catch (PdfCoreStructureException) {
-            // If Info cannot be resolved, return null instead of failing
+        $infoObjectId = $this->resolveOptionalReference($document, 'Info', 'info object');
+        if ($infoObjectId === null) {
             return null;
         }
+
+        $infoObject = $document->getObject($infoObjectId);
+        if ($infoObject === null) {
+            throw new PdfCoreStructureException('Invalid info object');
+        }
+
+        return $infoObject;
     }
 
     private function resolveRequiredReference(PdfDocument $document, string $field, string $label): int
@@ -58,9 +53,9 @@ final class TrailerObjectResolver
     }
 
     /**
-     * Resolve optional reference from trailer, returning null if not found or invalid.
+     * Resolve optional reference from trailer, returning null when field is absent.
      */
-    private function resolveOptionalReference(PdfDocument $document, string $field): ?int
+    private function resolveOptionalReference(PdfDocument $document, string $field, string $label): ?int
     {
         $reference = $document->getTrailerObject()[$field] ?? null;
         if ($reference === null) {
@@ -69,7 +64,7 @@ final class TrailerObjectResolver
 
         $objectId = $reference->asObjectReferenceOrNull();
         if ($objectId === null || is_array($objectId)) {
-            return null;
+            throw new PdfCoreStructureException(sprintf('Could not find the %s from the trailer', $label));
         }
 
         return $objectId;

@@ -178,7 +178,7 @@ final class PdfDocumentCoreTest extends TestCase
         self::assertNotNull($infoObject['ModDate']);
     }
 
-    public function test_update_modify_date_replaces_invalid_info_reference_with_new_object(): void
+    public function test_update_modify_date_throws_when_info_reference_targets_missing_object(): void
     {
         $document = new PdfDocument;
         $document->setTrailerObject(new PDFValueObject([
@@ -189,19 +189,9 @@ final class PdfDocumentCoreTest extends TestCase
             'Type' => '/Catalog',
         ]));
 
-        $result = $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Invalid info object');
 
-        self::assertTrue($result);
-
-        $infoReference = $document->getTrailerObject()['Info'];
-        self::assertNotNull($infoReference);
-
-        $infoOid = $infoReference->asObjectReferenceOrNull();
-        self::assertIsInt($infoOid);
-        self::assertNotSame(999, $infoOid);
-
-        $infoObject = $document->getObject($infoOid);
-        self::assertNotNull($infoObject);
-        self::assertSame('(Modifier with PHP Signer)', (string) $infoObject['Producer']);
+        $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
     }
 }
