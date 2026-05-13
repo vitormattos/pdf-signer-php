@@ -21,15 +21,28 @@ final class TrailerObjectResolver
         return $rootObject;
     }
 
-    public function resolveInfoObject(PdfDocument $document): PDFObject
+    /**
+     * Resolve Info object, returning null if not present or invalid.
+     * Info is optional in PDF spec; many valid PDFs don't have it.
+     */
+    public function resolveInfoObject(PdfDocument $document): PDFObject|null
     {
-        $infoObjectId = $this->resolveRequiredReference($document, 'Info', 'info object');
-        $infoObject = $document->getObject($infoObjectId);
-        if ($infoObject === null) {
-            throw new PdfCoreStructureException('Invalid info object');
-        }
+        try {
+            $infoObjectId = $this->resolveOptionalReference($document, 'Info');
+            if ($infoObjectId === null) {
+                return null;
+            }
 
-        return $infoObject;
+            $infoObject = $document->getObject($infoObjectId);
+            if ($infoObject === null) {
+                return null;
+            }
+
+            return $infoObject;
+        } catch (PdfCoreStructureException) {
+            // If Info cannot be resolved, return null instead of failing
+            return null;
+        }
     }
 
     private function resolveRequiredReference(PdfDocument $document, string $field, string $label): int
@@ -39,6 +52,24 @@ final class TrailerObjectResolver
 
         if ($objectId === null || is_array($objectId)) {
             throw new PdfCoreStructureException(sprintf('Could not find the %s from the trailer', $label));
+        }
+
+        return $objectId;
+    }
+
+    /**
+     * Resolve optional reference from trailer, returning null if not found or invalid.
+     */
+    private function resolveOptionalReference(PdfDocument $document, string $field): int|null
+    {
+        $reference = $document->getTrailerObject()[$field] ?? null;
+        if ($reference === null) {
+            return null;
+        }
+
+        $objectId = $reference->asObjectReferenceOrNull();
+        if ($objectId === null || is_array($objectId)) {
+            return null;
         }
 
         return $objectId;
