@@ -25,7 +25,7 @@ final class TrailerObjectResolver
      * Resolve Info object, returning null if not present or invalid.
      * Info is optional in PDF spec; many valid PDFs don't have it.
      */
-    public function resolveInfoObject(PdfDocument $document): PDFObject|null
+    public function resolveInfoObject(PdfDocument $document): ?PDFObject
     {
         try {
             $infoObjectId = $this->resolveOptionalReference($document, 'Info');
@@ -60,7 +60,7 @@ final class TrailerObjectResolver
     /**
      * Resolve optional reference from trailer, returning null if not found or invalid.
      */
-    private function resolveOptionalReference(PdfDocument $document, string $field): int|null
+    private function resolveOptionalReference(PdfDocument $document, string $field): ?int
     {
         $reference = $document->getTrailerObject()[$field] ?? null;
         if ($reference === null) {

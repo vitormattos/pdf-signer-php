@@ -58,6 +58,34 @@ final class TrailerObjectResolverTest extends TestCase
         self::assertNull($resolved);
     }
 
+    public function test_resolve_info_object_returns_expected_object_when_reference_is_valid(): void
+    {
+        $document = new PdfDocument;
+        $info = new PDFObject(10, ['Producer' => '(UnitTest)']);
+
+        $document->setTrailerObject(new PDFValueObject(['Info' => new PDFValueReference(10)]));
+        $document->addObject($info);
+
+        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+
+        self::assertSame($info, $resolved);
+    }
+
+    public function test_resolve_info_object_returns_null_when_document_throws_structure_exception(): void
+    {
+        $document = new class extends PdfDocument
+        {
+            public function getTrailerObject(): PDFValueObject
+            {
+                throw new PdfCoreStructureException('forced for coverage');
+            }
+        };
+
+        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+
+        self::assertNull($resolved);
+    }
+
     public function test_resolve_root_object_throws_when_target_object_is_missing(): void
     {
         $document = new PdfDocument;
