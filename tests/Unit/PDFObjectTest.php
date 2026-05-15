@@ -220,9 +220,29 @@ final class PDFObjectTest extends TestCase
         self::assertIsString($payload);
         $object->setStream($payload);
 
-        $decoded = $object->getStream(false);
+        self::assertSame('abc', $object->getStream(false));
+    }
 
-        self::assertSame('abc', $decoded);
+    public function test_get_stream_decodes_gzip_flate_payload(): void
+    {
+        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
+
+        $payload = gzencode('abc');
+        self::assertIsString($payload);
+        $object->setStream($payload);
+
+        self::assertSame('abc', $object->getStream(false));
+    }
+
+    public function test_get_stream_decodes_zlib_flate_payload(): void
+    {
+        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
+
+        $payload = gzcompress('abc');
+        self::assertIsString($payload);
+        $object->setStream($payload);
+
+        self::assertSame('abc', $object->getStream(false));
     }
 
     public function test_get_stream_throws_for_invalid_columns_when_predictor_requires_it(): void

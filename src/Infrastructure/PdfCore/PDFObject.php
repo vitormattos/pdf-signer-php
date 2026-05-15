@@ -190,19 +190,36 @@ endstream
 
     private static function inflateFlateStream(string $stream): string
     {
-        // FlateDecode payloads in the wild may come as zlib, raw deflate, or
-        // (rarely) gzip wrappers. Try each supported inflate mode explicitly.
-        $inflated = @gzuncompress($stream);
-        if (is_string($inflated)) {
-            return $inflated;
+        // ISO 32000 §7.4.4 mandates zlib (RFC 1950) for FlateDecode, but
+        // non-conforming generators produce raw deflate (RFC 1951) or gzip
+        // (RFC 1952). Each format has a deterministic byte-level signature,
+        // so we dispatch without guessing.
+        $b0 = strlen($stream) > 1 ? ord($stream[0]) : -1;
+        $b1 = strlen($stream) > 1 ? ord($stream[1]) : -1;
+
+        // Gzip: magic bytes 0x1F 0x8B (RFC 1952).
+        if ($b0 === 0x1F && $b1 === 0x8B) {
+            $inflated = @gzdecode($stream);
+            if (is_string($inflated)) {
+                return $inflated;
+            }
+
+            throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
         }
 
+        // zlib: CMF+FLG header where (CMF*256+FLG) % 31 === 0 and CM (lower 4
+        // bits of CMF) === 8 (deflate). (RFC 1950)
+        if ($b0 !== -1 && ($b0 & 0x0F) === 8 && ($b0 * 256 + $b1) % 31 === 0) {
+            $inflated = @gzuncompress($stream);
+            if (is_string($inflated)) {
+                return $inflated;
+            }
+
+            throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
+        }
+
+        // Raw deflate (RFC 1951): no wrapper header.
         $inflated = @gzinflate($stream);
-        if (is_string($inflated)) {
-            return $inflated;
-        }
-
-        $inflated = @gzdecode($stream);
         if (is_string($inflated)) {
             return $inflated;
         }
