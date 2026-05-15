@@ -21,9 +21,17 @@ final class TrailerObjectResolver
         return $rootObject;
     }
 
-    public function resolveInfoObject(PdfDocument $document): PDFObject
+    /**
+     * Resolve Info object, returning null only when Info is absent.
+     * Info is optional in PDF spec; many valid PDFs don't have it.
+     */
+    public function resolveInfoObject(PdfDocument $document): ?PDFObject
     {
-        $infoObjectId = $this->resolveRequiredReference($document, 'Info', 'info object');
+        $infoObjectId = $this->resolveOptionalReference($document, 'Info', 'info object');
+        if ($infoObjectId === null) {
+            return null;
+        }
+
         $infoObject = $document->getObject($infoObjectId);
         if ($infoObject === null) {
             throw new PdfCoreStructureException('Invalid info object');
@@ -37,6 +45,24 @@ final class TrailerObjectResolver
         $reference = $document->getTrailerObject()[$field] ?? null;
         $objectId = $reference?->asObjectReferenceOrNull();
 
+        if ($objectId === null || is_array($objectId)) {
+            throw new PdfCoreStructureException(sprintf('Could not find the %s from the trailer', $label));
+        }
+
+        return $objectId;
+    }
+
+    /**
+     * Resolve optional reference from trailer, returning null when field is absent.
+     */
+    private function resolveOptionalReference(PdfDocument $document, string $field, string $label): ?int
+    {
+        $reference = $document->getTrailerObject()[$field] ?? null;
+        if ($reference === null) {
+            return null;
+        }
+
+        $objectId = $reference->asObjectReferenceOrNull();
         if ($objectId === null || is_array($objectId)) {
             throw new PdfCoreStructureException(sprintf('Could not find the %s from the trailer', $label));
         }

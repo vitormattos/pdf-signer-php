@@ -7,6 +7,7 @@ namespace SignerPHP\Infrastructure\PdfCore;
 use DateTime;
 use SignerPHP\Infrastructure\PdfCore\Exception\PdfCoreStructureException;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValue;
+use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueReference;
 use SignerPHP\Infrastructure\PdfCore\PdfValue\PDFValueString;
 use SignerPHP\Infrastructure\PdfCore\Service\DocumentMetadataUpdater;
 use SignerPHP\Infrastructure\PdfCore\Service\ObjectStreamResolver;
@@ -266,6 +267,14 @@ class PdfDocument
         }
 
         $infoObj = $this->trailerObjectResolver()->resolveInfoObject($this);
+
+        // If Info object doesn't exist, create a new one
+        if ($infoObj === null) {
+            $infoObj = $this->createObject([]);
+            $this->getTrailerObject()['Info'] = new PDFValueReference($infoObj->getOid(), 0);
+            // Set creation date on new Info object
+            $infoObj['CreationDate'] = new PDFValueString(Date::toPdfDateString(new DateTime));
+        }
 
         $infoObj['ModDate'] = new PDFValueString(Date::toPdfDateString($date));
         $infoObj['Producer'] = 'Modifier with PHP Signer';

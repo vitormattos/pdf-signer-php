@@ -49,6 +49,40 @@ final class TrailerObjectResolverTest extends TestCase
         (new TrailerObjectResolver)->resolveInfoObject($document);
     }
 
+    public function test_resolve_info_object_returns_null_when_reference_is_missing(): void
+    {
+        $document = new PdfDocument;
+        $document->setTrailerObject(new PDFValueObject);
+
+        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+
+        self::assertNull($resolved);
+    }
+
+    public function test_resolve_info_object_returns_expected_object_when_reference_is_valid(): void
+    {
+        $document = new PdfDocument;
+        $info = new PDFObject(10, ['Producer' => '(UnitTest)']);
+
+        $document->setTrailerObject(new PDFValueObject(['Info' => new PDFValueReference(10)]));
+        $document->addObject($info);
+
+        $resolved = (new TrailerObjectResolver)->resolveInfoObject($document);
+
+        self::assertSame($info, $resolved);
+    }
+
+    public function test_resolve_info_object_throws_when_reference_is_invalid(): void
+    {
+        $document = new PdfDocument;
+        $document->setTrailerObject(new PDFValueObject(['Info' => 'invalid']));
+
+        $this->expectException(PdfCoreStructureException::class);
+        $this->expectExceptionMessage('Could not find the info object from the trailer');
+
+        (new TrailerObjectResolver)->resolveInfoObject($document);
+    }
+
     public function test_resolve_root_object_throws_when_target_object_is_missing(): void
     {
         $document = new PdfDocument;

@@ -150,4 +150,48 @@ final class PdfDocumentCoreTest extends TestCase
 
         $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
     }
+
+    public function test_update_modify_date_creates_info_object_when_info_reference_is_missing(): void
+    {
+        $document = new PdfDocument;
+        $document->setTrailerObject(new PDFValueObject([
+            'Root' => new PDFValueReference(1),
+        ]));
+        $document->addObject(new PDFObject(1, [
+            'Type' => '/Catalog',
+        ]));
+
+        $result = $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
+
+        self::assertTrue($result);
+
+        $infoReference = $document->getTrailerObject()['Info'];
+        self::assertNotNull($infoReference);
+
+        $infoOid = $infoReference->asObjectReferenceOrNull();
+        self::assertIsInt($infoOid);
+
+        $infoObject = $document->getObject($infoOid);
+        self::assertNotNull($infoObject);
+        self::assertSame('(Modifier with PHP Signer)', (string) $infoObject['Producer']);
+        self::assertNotNull($infoObject['CreationDate']);
+        self::assertNotNull($infoObject['ModDate']);
+    }
+
+    public function test_update_modify_date_throws_when_info_reference_targets_missing_object(): void
+    {
+        $document = new PdfDocument;
+        $document->setTrailerObject(new PDFValueObject([
+            'Root' => new PDFValueReference(1),
+            'Info' => new PDFValueReference(999),
+        ]));
+        $document->addObject(new PDFObject(1, [
+            'Type' => '/Catalog',
+        ]));
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Invalid info object');
+
+        $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
+    }
 }
