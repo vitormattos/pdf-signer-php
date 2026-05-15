@@ -194,4 +194,28 @@ final class PdfDocumentCoreTest extends TestCase
 
         $document->updateModifyDate(new \DateTime('2024-01-02T03:04:05+00:00'));
     }
+
+    public function test_find_object_at_offset_decompresses_flatedecode_xref_stream(): void
+    {
+        // Build XRef stream with FlateDecode compression (ISO 32000-1:2008 §7.5.8)
+        $rawEntries = chr(1).pack('n', 0).chr(0)   // entry 0: in-use, offset 0, gen 0
+                    .chr(1).pack('n', 100).chr(0); // entry 1: in-use, offset 100, gen 0
+        $compressed = gzcompress($rawEntries);
+        $length = strlen($compressed);
+
+        $buffer = "1 0 obj\n<<\n/Type /XRef\n/W [1 2 1]\n/Size 2\n/Index [0 2]\n/Length {$length}\n/Filter /FlateDecode\n>>\nstream\n"
+            .$compressed
+            ."\nendstream\nendobj";
+
+        $document = new PdfDocument;
+        $document->setBufferFromString($buffer);
+
+        $xrefObject = $document->findObjectAtOffset(0);
+
+        self::assertNotNull($xrefObject);
+        self::assertSame(1, $xrefObject->getOid());
+        self::assertSame('XRef', $xrefObject['Type']->val());
+        // Stream must be decompressed and available
+        self::assertSame($rawEntries, $xrefObject->getStream(false));
+    }
 }

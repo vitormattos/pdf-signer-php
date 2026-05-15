@@ -179,44 +179,4 @@ final class XRef15ParserTest extends TestCase
             }
         };
     }
-
-    /**
-     * Validates XRef stream parsing with FlateDecode compression.
-     * ISO 32000-1:2008 §7.5.8: Cross-reference streams may use stream filters (e.g., /FlateDecode)
-     * to compress the stream data. Parser must decompress and extract entries correctly.
-     */
-    public function test_parse_reads_flatedecode_xref_stream_from_real_pdf_buffer(): void
-    {
-        $document = $this->documentFromBuffer($this->buildXRefStreamBuffer());
-
-        $result = (new XRef15Parser)->parse($document, 0);
-
-        self::assertSame(0, $result->table[0]);
-        self::assertSame(100, $result->table[1]);
-    }
-
-    private function buildXRefStreamBuffer(): string
-    {
-        // Two type-1 xref entries: [offset=0, gen=0] and [offset=100, gen=0]
-        // Field widths W=[1,2,1]: type(1 byte) + offset(2 bytes big-endian) + gen(1 byte)
-        $rawEntries = chr(1).pack('n', 0).chr(0)   // entry 0: in-use, offset 0, gen 0
-                    .chr(1).pack('n', 100).chr(0); // entry 1: in-use, offset 100, gen 0
-        $compressed = gzcompress($rawEntries);
-        $length = strlen($compressed);
-
-        return "1 0 obj\n<<\n/Type /XRef\n/W [1 2 1]\n/Size 2\n/Index [0 2]\n/Length {$length}\n/Filter /FlateDecode\n>>\nstream\n"
-            .$compressed
-            ."\nendstream\nendobj";
-    }
-
-    private function documentFromBuffer(string $buffer): PdfDocument
-    {
-        return new class($buffer) extends PdfDocument
-        {
-            public function __construct(string $buffer)
-            {
-                $this->setBufferFromString($buffer);
-            }
-        };
-    }
 }
