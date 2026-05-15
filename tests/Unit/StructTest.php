@@ -10,9 +10,20 @@ use SignerPHP\Infrastructure\PdfCore\Struct;
 
 final class StructTest extends TestCase
 {
-    public function test_parse_returns_empty_xref_structure_when_startxref_points_to_zero(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function pdfHeaderPrefixVariants(): array
     {
-        $pdf = "%PDF-1.4\nstartxref\n0\n%%EOF\n";
+        return [
+            'no prefix (conforming)' => ["%PDF-1.4\nstartxref\n0\n%%EOF\n"],
+            'UTF-8 BOM prefix (non-conforming)' => ["\xEF\xBB\xBF%PDF-1.4\nstartxref\n0\n%%EOF\n"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('pdfHeaderPrefixVariants')]
+    public function test_parse_detects_pdf_version_with_various_header_prefixes(string $pdf): void
+    {
         $document = new PdfDocument;
         $document->setBufferFromString($pdf);
 

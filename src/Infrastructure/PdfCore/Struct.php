@@ -14,9 +14,7 @@ class Struct
 {
     private PdfDocument $pdfDocument;
 
-    private string $separator = "\r\n";
-
-    private const REGEX_PDF_VERSION = '/^%PDF-\d+\.\d+$/';
+    private const REGEX_PDF_VERSION = '/%PDF-(\d+\.\d+)/';
 
     public static function new(): static
     {
@@ -38,30 +36,41 @@ class Struct
         return $this->parse()->toArray();
     }
 
+    /**
+     * Parse PDF structure (version, cross-references, trailer).
+     *
+     * ISO 32000 §7.5.2 places the version marker `%PDF-x.y` at file start, but some tools
+     * prepend UTF-8 BOM or binary bytes. Robustness principle (RFC 1122): scan first 1024
+     * bytes for `%PDF-` pattern instead of strict first-line matching. Consistent with
+     * libpoppler, PDFium, Apache PDFBox.
+     */
     public function parse(): ParsedDocumentStructure
     {
-        $pdfVersion = strtok($this->pdfDocument->getBuffer()->raw(), $this->separator);
-        if ($pdfVersion === false) {
+        $buffer = $this->pdfDocument->getBuffer()->raw();
+        if ($buffer === '') {
             throw new Exception('Failed to get PDF version');
         }
 
-        if (preg_match(self::REGEX_PDF_VERSION, $pdfVersion, $matches) !== 1) {
+        $headerWindow = substr($buffer, 0, 1024);
+        if (preg_match(self::REGEX_PDF_VERSION, $headerWindow, $matches) !== 1) {
             throw new Exception('PDF version not found');
         }
 
-        preg_match_all('/startxref\s*([0-9]+)\s*%%EOF($|[\r\n])/ms', $this->pdfDocument->getBuffer()->raw(), $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
+        $pdfVersion = 'PDF-'.$matches[1];
+
+        preg_match_all('/startxref\s*([0-9]+)\s*%%EOF($|[\r\n])/ms', $buffer, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE);
 
         $versions = [];
         foreach ($matches as $match) {
             $versions[] = intval($match[2][1]) + strlen($match[2][0]);
         }
 
-        $startXRefPos = strrpos($this->pdfDocument->getBuffer()->raw(), 'startxref');
+        $startXRefPos = strrpos($buffer, 'startxref');
         if ($startXRefPos === false) {
             throw new Exception('startxref not found');
         }
 
-        if (preg_match('/startxref\s*([0-9]+)\s*%%EOF\s*$/ms', $this->pdfDocument->getBuffer()->raw(), $matches, 0, $startXRefPos) !== 1) {
+        if (preg_match('/startxref\s*([0-9]+)\s*%%EOF\s*$/ms', $buffer, $matches, 0, $startXRefPos) !== 1) {
             throw new Exception('startxref and %%EOF not found');
         }
 
@@ -70,10 +79,10 @@ class Struct
         if ($xrefPos === 0) {
             return new ParsedDocumentStructure(
                 trailer: null,
-                version: substr($pdfVersion, 1),
+                version: $pdfVersion,
                 xrefTable: [],
                 xrefPosition: 0,
-                xrefVersion: substr($pdfVersion, 1),
+                xrefVersion: $pdfVersion,
                 revisions: $versions,
             );
         }
@@ -85,7 +94,7 @@ class Struct
 
         return new ParsedDocumentStructure(
             trailer: $xref->trailer,
-            version: substr($pdfVersion, 1),
+            version: $pdfVersion,
             xrefTable: $xref->table,
             xrefPosition: $xrefPos,
             xrefVersion: $xref->minimumPdfVersion,
