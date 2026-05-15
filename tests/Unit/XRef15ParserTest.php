@@ -181,9 +181,9 @@ final class XRef15ParserTest extends TestCase
     }
 
     /**
-     * Regression test: XRef15Parser must read XRef streams from the real PDF buffer.
-     * Bug: objectFromString() parses the object header but does NOT attach the stream bytes.
-     * When XRef15Parser calls getStream(false), the stream is empty, and FlateDecode inflate fails.
+     * Validates XRef stream parsing with FlateDecode compression (PDF 1.5+, ISO 32000-1).
+     * XRef streams are cross-reference tables stored as PDF objects with compressed payloads.
+     * Must correctly decompress and parse entries from the inflated stream data.
      */
     public function test_parse_reads_flatedecode_xref_stream_from_real_pdf_buffer(): void
     {
