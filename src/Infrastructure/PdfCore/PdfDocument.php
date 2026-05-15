@@ -218,7 +218,7 @@ class PdfDocument
         }
 
         if ($entry->isDirectOffset()) {
-            return $this->findObjectAtPos($oid, (int) $entry->offset());
+            return $this->findObjectAtOffset((int) $entry->offset(), $oid);
         }
 
         return $this->findObjectInObjStm((int) $entry->objectStreamId(), (int) $entry->objectStreamPosition(), $oid);
@@ -229,17 +229,7 @@ class PdfDocument
         return $this->objectStreamResolver()->resolveFromObjectStream($this, $objstmOid, $objpos, $oid);
     }
 
-    public function findObjectAtPos(int $oid, int $objectOffset): PDFObject
-    {
-        return $this->readObjectAtOffset($objectOffset, $oid);
-    }
-
-    public function findObjectAtOffset(int $objectOffset): PDFObject
-    {
-        return $this->readObjectAtOffset($objectOffset);
-    }
-
-    public function readObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
+    public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
     {
         $offsetEnd = 0;
         $object = $this->objectFromString($expectedOid, $objectOffset, $offsetEnd);

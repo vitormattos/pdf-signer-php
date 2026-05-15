@@ -29,7 +29,7 @@ final class XRef15Test extends TestCase
                 return $this->xrefObject;
             }
 
-            public function findObjectAtOffset(int $objectOffset): PDFObject
+            public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
             {
                 return $this->xrefObject;
             }
@@ -63,7 +63,7 @@ final class XRef15Test extends TestCase
                 return $this->xrefObject;
             }
 
-            public function findObjectAtOffset(int $objectOffset): PDFObject
+            public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
             {
                 return $this->xrefObject;
             }
