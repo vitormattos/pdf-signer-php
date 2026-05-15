@@ -24,11 +24,6 @@ final class XRef15Test extends TestCase
         {
             public function __construct(private readonly PDFObject $xrefObject) {}
 
-            public function objectFromString(int|string|null $expectedObjId, int $offset = 0, int &$offsetEnd = 0): PDFObject
-            {
-                return $this->xrefObject;
-            }
-
             public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
             {
                 return $this->xrefObject;
@@ -57,11 +52,6 @@ final class XRef15Test extends TestCase
         $document = new class($xrefObject) extends PdfDocument
         {
             public function __construct(private readonly PDFObject $xrefObject) {}
-
-            public function objectFromString(int|string|null $expectedObjId, int $offset = 0, int &$offsetEnd = 0): PDFObject
-            {
-                return $this->xrefObject;
-            }
 
             public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
             {
