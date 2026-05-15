@@ -231,11 +231,12 @@ class PdfDocument
 
     public function findObjectAtPos(int $oid, int $objectOffset): PDFObject
     {
-        $offsetEnd = 0;
-        $object = $this->objectFromString($oid, $objectOffset, $offsetEnd);
-        $this->objectStreamResolver()->attachObjectStreamIfPresent($this, $object, $offsetEnd, $oid);
+        return $this->resolveObjectAtOffsetWithOptionalStream($objectOffset, $oid);
+    }
 
-        return $object;
+    public function findObjectAtOffset(int $objectOffset): PDFObject
+    {
+        return $this->resolveObjectAtOffsetWithOptionalStream($objectOffset, null);
     }
 
     public function objectFromString(int|string|null $expectedObjId, int $offset = 0, int &$offsetEnd = 0): PDFObject
@@ -321,5 +322,15 @@ class PdfDocument
         $this->objectStreamResolver ??= new ObjectStreamResolver;
 
         return $this->objectStreamResolver;
+    }
+
+    private function resolveObjectAtOffsetWithOptionalStream(int $objectOffset, ?int $expectedOid): PDFObject
+    {
+        $offsetEnd = 0;
+        $object = $this->objectFromString($expectedOid, $objectOffset, $offsetEnd);
+        $objectOid = $expectedOid ?? $object->getOid();
+        $this->objectStreamResolver()->attachObjectStreamIfPresent($this, $object, $offsetEnd, $objectOid);
+
+        return $object;
     }
 }
