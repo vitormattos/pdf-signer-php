@@ -212,6 +212,30 @@ final class PDFObjectTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string, array{callable(string):string|false}>
+     */
+    public static function flateEncodeVariants(): array
+    {
+        return [
+            'zlib (RFC 1950 — mandated by ISO 32000)' => ['gzcompress'],
+            'raw deflate (RFC 1951 — non-conforming generators)' => ['gzdeflate'],
+            'gzip (RFC 1952 — rare non-conforming generators)' => ['gzencode'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('flateEncodeVariants')]
+    public function test_get_stream_decodes_flatedecode_for_all_wire_formats(callable $encoder): void
+    {
+        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
+
+        $payload = $encoder('abc');
+        self::assertIsString($payload);
+        $object->setStream($payload);
+
+        self::assertSame('abc', $object->getStream(false));
+    }
+
     public function test_get_stream_throws_for_invalid_columns_when_predictor_requires_it(): void
     {
         $object = new PDFObject(1, [

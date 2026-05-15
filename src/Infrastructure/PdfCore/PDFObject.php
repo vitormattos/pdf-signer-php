@@ -188,6 +188,51 @@ endstream
         return $decoded->raw();
     }
 
+    /**
+     * Decompress FlateDecode stream by format-aware detection (RFC 1950, 1951, 1952).
+     *
+     * ISO 32000 mandates zlib (RFC 1950), but non-conforming generators produce raw deflate
+     * (RFC 1951) or gzip (RFC 1952). Each format has a deterministic byte signature:
+     * gzip (0x1F 0x8B) → gzdecode(), zlib (CMF header checksum) → gzuncompress(),
+     * everything else → gzinflate(). This avoids blind trial-and-error.
+     *
+     * @throws PdfCoreParsingException
+     */
+    private static function inflateFlateStream(string $stream): string
+    {
+        $b0 = strlen($stream) > 1 ? ord($stream[0]) : -1;
+        $b1 = strlen($stream) > 1 ? ord($stream[1]) : -1;
+
+        // Gzip: magic bytes 0x1F 0x8B (RFC 1952).
+        if ($b0 === 0x1F && $b1 === 0x8B) {
+            $inflated = @gzdecode($stream);
+            if (is_string($inflated)) {
+                return $inflated;
+            }
+
+            throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
+        }
+
+        // zlib: CMF+FLG header where (CMF*256+FLG) % 31 === 0 and CM (lower 4
+        // bits of CMF) === 8 (deflate). (RFC 1950)
+        if ($b0 !== -1 && ($b0 & 0x0F) === 8 && ($b0 * 256 + $b1) % 31 === 0) {
+            $inflated = @gzuncompress($stream);
+            if (is_string($inflated)) {
+                return $inflated;
+            }
+
+            throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
+        }
+
+        // Raw deflate (RFC 1951): no wrapper header.
+        $inflated = @gzinflate($stream);
+        if (is_string($inflated)) {
+            return $inflated;
+        }
+
+        throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
+    }
+
     public function getStream($raw = true): string
     {
         if ($raw === true) {
@@ -205,10 +250,7 @@ endstream
                         'Colors' => $DecodeParams['Colors'] ?? new PDFValueSimple(1),
                     ];
 
-                    $inflated = gzuncompress((string) $this->stream);
-                    if ($inflated === false) {
-                        throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
-                    }
+                    $inflated = self::inflateFlateStream((string) $this->stream);
 
                     return self::flateDecode($inflated, $params);
                 default:
