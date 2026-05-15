@@ -181,9 +181,9 @@ final class XRef15ParserTest extends TestCase
     }
 
     /**
-     * Validates XRef stream parsing with FlateDecode compression (PDF 1.5+, ISO 32000-1).
-     * XRef streams are cross-reference tables stored as PDF objects with compressed payloads.
-     * Must correctly decompress and parse entries from the inflated stream data.
+     * Validates XRef stream parsing with FlateDecode compression.
+     * ISO 32000-1:2008 §7.5.8: Cross-reference streams may use stream filters (e.g., /FlateDecode)
+     * to compress the stream data. Parser must decompress and extract entries correctly.
      */
     public function test_parse_reads_flatedecode_xref_stream_from_real_pdf_buffer(): void
     {
