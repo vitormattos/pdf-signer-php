@@ -37,32 +37,12 @@ class Struct
     }
 
     /**
-     * Parse the PDF document structure, including version, cross-reference tables, and trailer.
+     * Parse PDF structure (version, cross-references, trailer).
      *
-     * **PDF Version Detection Strategy**
-     *
-     * Per ISO 32000-1:2008 §7.5.2, the PDF version marker `%PDF-x.y` shall appear at the very
-     * beginning of the file. However, this standard assumes conforming producers. In practice,
-     * widely-used tools (especially Windows applications using Win32 APIs) prepend a UTF-8 BOM
-     * (`0xEF 0xBB 0xBF`) to the file stream. The BOM is invisible to end users and not part of
-     * the document, yet it physically precedes `%PDF-`.
-     *
-     * This implementation follows the Robustness Principle (RFC 1122 §1.2.2, Postel's Law):
-     *   "Be conservative in what you send, be liberal in what you accept."
-     *
-     * ISO 32000-2:2020 §7.5.2 reinforces this guidance with an informative note acknowledging
-     * that conforming readers should handle files with slight deviations from the normative
-     * header placement. This approach is consistent with how major PDF implementations handle
-     * the same issue:
-     *
-     *   - libpoppler (PDFDoc.cc): scans forward from the file start to find `%PDF-`
-     *   - PDFium (cpdf_parser.cpp): searches within a header window for the version marker
-     *   - Apache PDFBox: skips BOM bytes before header detection
-     *
-     * Strategy: Scan the first 1024 bytes (sufficient per ISO 32000 requirements) for the
-     * pattern `/%PDF-(\d+\.\d+)/` instead of enforcing strict first-line matching. This is
-     * the canonical pattern used by MIME sniffing tools (Unix `file` command, Apache Tika)
-     * and tolerates both UTF-8 BOM and other binary prefixes while remaining unambiguous.
+     * ISO 32000 §7.5.2 places the version marker `%PDF-x.y` at file start, but some tools
+     * prepend UTF-8 BOM or binary bytes. Robustness principle (RFC 1122): scan first 1024
+     * bytes for `%PDF-` pattern instead of strict first-line matching. Consistent with
+     * libpoppler, PDFium, Apache PDFBox.
      */
     public function parse(): ParsedDocumentStructure
     {
