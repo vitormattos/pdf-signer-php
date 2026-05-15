@@ -188,12 +188,45 @@ endstream
         return $decoded->raw();
     }
 
+    /**
+     * Decompress a FlateDecode stream using format-aware detection.
+     *
+     * **Compression Format Specification**
+     *
+     * ISO 32000-1:2008 §7.4.4 and ISO 32000-2:2020 §7.4.4 mandate that FlateDecode streams
+     * must use the zlib format as defined in RFC 1950, which combines the DEFLATE algorithm
+     * (RFC 1951) with a 2-byte CMF+FLG header and an Adler-32 checksum. This is the only
+     * conforming format.
+     *
+     * In practice, non-conforming PDF generators (particularly tools targeting Windows or
+     * legacy systems) produce streams in two other formats:
+     *
+     *   - **Raw DEFLATE (RFC 1951)**: No header or checksum. Difficult to distinguish from
+     *     corrupted data without attempting decompression.
+     *   - **GZIP (RFC 1952)**: Includes its own 2-byte magic header (0x1F 0x8B) for tar/gzip
+     *     compatibility. Rare in PDFs but seen in output from cross-platform tools.
+     *
+     * **Format Detection**
+     *
+     * Each format is identifiable by its initial bytes, allowing deterministic dispatch instead
+     * of blind trial-and-error:
+     *
+     *   | Format | Signature | PHP Function | RFC |
+     *   |---|---|---|---|
+     *   | GZIP | magic bytes 0x1F 0x8B | gzdecode() | RFC 1952 |
+     *   | zlib | CMF byte & 0x0F == 8, (CMF*256+FLG) % 31 == 0 | gzuncompress() | RFC 1950 |
+     *   | raw DEFLATE | none (absence of above) | gzinflate() | RFC 1951 |
+     *
+     * This approach is more robust than sequential attempt-and-error because:
+     *   1. Non-blocking: avoids suppressing real errors with `@` operator
+     *   2. Semantically correct: error is thrown only when format is correctly identified
+     *     but fails to decompress, not after exhausting all variants
+     *   3. Consistent with major PDF engines (libpoppler, PDFium, Apache PDFBox)
+     *
+     * @throws PdfCoreParsingException if the stream cannot be decompressed after format detection
+     */
     private static function inflateFlateStream(string $stream): string
     {
-        // ISO 32000 §7.4.4 mandates zlib (RFC 1950) for FlateDecode, but
-        // non-conforming generators produce raw deflate (RFC 1951) or gzip
-        // (RFC 1952). Each format has a deterministic byte-level signature,
-        // so we dispatch without guessing.
         $b0 = strlen($stream) > 1 ? ord($stream[0]) : -1;
         $b1 = strlen($stream) > 1 ? ord($stream[1]) : -1;
 
