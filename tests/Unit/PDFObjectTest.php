@@ -212,6 +212,19 @@ final class PDFObjectTest extends TestCase
         }
     }
 
+    public function test_get_stream_decodes_raw_deflate_flate_payload(): void
+    {
+        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
+
+        $payload = gzdeflate('abc');
+        self::assertIsString($payload);
+        $object->setStream($payload);
+
+        $decoded = $object->getStream(false);
+
+        self::assertSame('abc', $decoded);
+    }
+
     public function test_get_stream_throws_for_invalid_columns_when_predictor_requires_it(): void
     {
         $object = new PDFObject(1, [

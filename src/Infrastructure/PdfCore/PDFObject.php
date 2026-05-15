@@ -188,6 +188,28 @@ endstream
         return $decoded->raw();
     }
 
+    private static function inflateFlateStream(string $stream): string
+    {
+        // FlateDecode payloads in the wild may come as zlib, raw deflate, or
+        // (rarely) gzip wrappers. Try each supported inflate mode explicitly.
+        $inflated = @gzuncompress($stream);
+        if (is_string($inflated)) {
+            return $inflated;
+        }
+
+        $inflated = @gzinflate($stream);
+        if (is_string($inflated)) {
+            return $inflated;
+        }
+
+        $inflated = @gzdecode($stream);
+        if (is_string($inflated)) {
+            return $inflated;
+        }
+
+        throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
+    }
+
     public function getStream($raw = true): string
     {
         if ($raw === true) {
@@ -205,10 +227,7 @@ endstream
                         'Colors' => $DecodeParams['Colors'] ?? new PDFValueSimple(1),
                     ];
 
-                    $inflated = gzuncompress((string) $this->stream);
-                    if ($inflated === false) {
-                        throw new PdfCoreParsingException('Failed to inflate FlateDecode stream.');
-                    }
+                    $inflated = self::inflateFlateStream((string) $this->stream);
 
                     return self::flateDecode($inflated, $params);
                 default:
