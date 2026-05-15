@@ -10,9 +10,20 @@ use SignerPHP\Infrastructure\PdfCore\Struct;
 
 final class StructTest extends TestCase
 {
-    public function test_parse_returns_empty_xref_structure_when_startxref_points_to_zero(): void
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function pdfHeaderPrefixVariants(): array
     {
-        $pdf = "%PDF-1.4\nstartxref\n0\n%%EOF\n";
+        return [
+            'no prefix (conforming)' => ["%PDF-1.4\nstartxref\n0\n%%EOF\n"],
+            'UTF-8 BOM prefix (non-conforming)' => ["\xEF\xBB\xBF%PDF-1.4\nstartxref\n0\n%%EOF\n"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('pdfHeaderPrefixVariants')]
+    public function test_parse_detects_pdf_version_with_various_header_prefixes(string $pdf): void
+    {
         $document = new PdfDocument;
         $document->setBufferFromString($pdf);
 
@@ -24,21 +35,6 @@ final class StructTest extends TestCase
         self::assertSame('PDF-1.4', $structure->version);
         self::assertSame([], $structure->xrefTable);
         self::assertSame(0, $structure->xrefPosition);
-    }
-
-    public function test_parse_detects_pdf_version_when_header_has_bom_prefix(): void
-    {
-        $pdf = "\xEF\xBB\xBF%PDF-1.4\nstartxref\n0\n%%EOF\n";
-        $document = new PdfDocument;
-        $document->setBufferFromString($pdf);
-
-        $structure = Struct::new()
-            ->withPdfDocument($document)
-            ->parse();
-
-        self::assertSame('PDF-1.4', $structure->version);
-        self::assertSame(0, $structure->xrefPosition);
-        self::assertSame([], $structure->xrefTable);
     }
 
     public function test_parse_throws_when_startxref_is_missing(): void
