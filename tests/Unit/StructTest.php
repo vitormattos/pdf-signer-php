@@ -26,6 +26,21 @@ final class StructTest extends TestCase
         self::assertSame(0, $structure->xrefPosition);
     }
 
+    public function test_parse_detects_pdf_version_when_header_has_bom_prefix(): void
+    {
+        $pdf = "\xEF\xBB\xBF%PDF-1.4\nstartxref\n0\n%%EOF\n";
+        $document = new PdfDocument;
+        $document->setBufferFromString($pdf);
+
+        $structure = Struct::new()
+            ->withPdfDocument($document)
+            ->parse();
+
+        self::assertSame('PDF-1.4', $structure->version);
+        self::assertSame(0, $structure->xrefPosition);
+        self::assertSame([], $structure->xrefTable);
+    }
+
     public function test_parse_throws_when_startxref_is_missing(): void
     {
         $document = new PdfDocument;
