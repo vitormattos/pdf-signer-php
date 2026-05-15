@@ -212,33 +212,24 @@ final class PDFObjectTest extends TestCase
         }
     }
 
-    public function test_get_stream_decodes_raw_deflate_flate_payload(): void
+    /**
+     * @return array<string, array{callable(string):string|false}>
+     */
+    public static function flateEncodeVariants(): array
     {
-        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
-
-        $payload = gzdeflate('abc');
-        self::assertIsString($payload);
-        $object->setStream($payload);
-
-        self::assertSame('abc', $object->getStream(false));
+        return [
+            'zlib (RFC 1950 — mandated by ISO 32000)' => ['gzcompress'],
+            'raw deflate (RFC 1951 — non-conforming generators)' => ['gzdeflate'],
+            'gzip (RFC 1952 — rare non-conforming generators)' => ['gzencode'],
+        ];
     }
 
-    public function test_get_stream_decodes_gzip_flate_payload(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('flateEncodeVariants')]
+    public function test_get_stream_decodes_flatedecode_for_all_wire_formats(callable $encoder): void
     {
         $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
 
-        $payload = gzencode('abc');
-        self::assertIsString($payload);
-        $object->setStream($payload);
-
-        self::assertSame('abc', $object->getStream(false));
-    }
-
-    public function test_get_stream_decodes_zlib_flate_payload(): void
-    {
-        $object = new PDFObject(1, ['Filter' => '/FlateDecode']);
-
-        $payload = gzcompress('abc');
+        $payload = $encoder('abc');
         self::assertIsString($payload);
         $object->setStream($payload);
 
