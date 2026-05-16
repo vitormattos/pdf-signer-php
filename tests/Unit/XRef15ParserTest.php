@@ -172,6 +172,11 @@ final class XRef15ParserTest extends TestCase
             {
                 return $this->objectsByPosition[$offset];
             }
+
+            public function findObjectAtOffset(int $objectOffset, ?int $expectedOid = null): PDFObject
+            {
+                return $this->objectsByPosition[$objectOffset];
+            }
         };
     }
 }

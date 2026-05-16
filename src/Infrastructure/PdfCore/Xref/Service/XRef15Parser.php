@@ -14,7 +14,7 @@ final class XRef15Parser
 {
     public function parse(PdfDocument $pdfDocument, int $xrefPosition): XrefParseResult
     {
-        $xrefObject = $pdfDocument->objectFromString(null, $xrefPosition);
+        $xrefObject = $pdfDocument->findObjectAtOffset($xrefPosition);
 
         if (! isset($xrefObject['Type']) || ($xrefObject['Type']->val() !== 'XRef')) {
             throw new PdfCoreStructureException('Invalid xref table');
